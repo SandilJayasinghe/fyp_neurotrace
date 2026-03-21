@@ -1,4 +1,7 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 
@@ -10,7 +13,12 @@ export const PROMPT_TEXT =
   "She typed slowly but deliberately, pressing each key with measured force as the clock ticked quietly on the wall.";
 
 export function useTypingTest() {
+<<<<<<< HEAD
   const [state, setState] = useState('IDLE');
+=======
+  // 1. All useState declarations
+  const [state, setState] = useState('IDLE'); // IDLE | ACTIVE | PROCESSING | RESULTS
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
   const [cursor, setCursor] = useState(0);
   const [charStatuses, setCharStatuses] = useState(() => Array(PROMPT_TEXT.length).fill('pending'));
   const [validCount, setValidCount] = useState(0);
@@ -19,24 +27,46 @@ export function useTypingTest() {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+<<<<<<< HEAD
+=======
+  // 2. All useRef declarations
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
   const keystrokeBuffer = useRef([]);
   const metricsWindow = useRef([]);
   const sessionId = useRef(null);
   const startTime = useRef(null);
+<<<<<<< HEAD
   const cursorRef = useRef(0);
   const errorCountRef = useRef(0);
   const stateRef = useRef('IDLE');
 
   const processKeystroke = useCallback((event, packet) => {
     if (stateRef.current !== 'ACTIVE') return;
+=======
+  const cursorRef = useRef(0);       // Mirrors cursor for use inside callbacks
+  const errorCountRef = useRef(0);   // Mirrors errorCount for use inside callbacks
+
+  // 3. Function declarations — all declared BEFORE any useEffect that references them
+
+  const processKeystroke = useCallback((event, packet) => {
+    if (state !== 'ACTIVE') return;
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
 
     const typedChar = packet.char;
     const expectedChar = PROMPT_TEXT[cursorRef.current];
 
+<<<<<<< HEAD
+=======
+    // Update rolling metrics window (last 30 keystrokes)
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
     metricsWindow.current.push(packet);
     if (metricsWindow.current.length > 30) metricsWindow.current.shift();
 
     if (typedChar === expectedChar) {
+<<<<<<< HEAD
+=======
+      // Correct keystroke
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
       const pos = cursorRef.current;
       setCharStatuses(prev => {
         const next = [...prev];
@@ -53,6 +83,10 @@ export function useTypingTest() {
         latency: packet.latency ?? null,
       });
     } else {
+<<<<<<< HEAD
+=======
+      // Incorrect keystroke — mark current position but do not advance cursor
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
       const pos = cursorRef.current;
       setCharStatuses(prev => {
         const next = [...prev];
@@ -62,9 +96,16 @@ export function useTypingTest() {
       errorCountRef.current += 1;
       setErrorCount(errorCountRef.current);
     }
+<<<<<<< HEAD
   }, []);
 
   const startTest = useCallback(async () => {
+=======
+  }, [state]);
+
+  const startTest = useCallback(async () => {
+    // Reset all tracking state
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
     cursorRef.current = 0;
     errorCountRef.current = 0;
     setCursor(0);
@@ -80,6 +121,10 @@ export function useTypingTest() {
 
     if (window.electron?.ipcRenderer) {
       try {
+<<<<<<< HEAD
+=======
+        await window.electron.ipcRenderer.invoke('capture:setTappyMode', false);
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
         await window.electron.ipcRenderer.invoke('capture:start');
       } catch (e) {
         console.warn('[useTypingTest] Electron capture start failed:', e);
@@ -100,6 +145,10 @@ export function useTypingTest() {
     }
 
     try {
+<<<<<<< HEAD
+=======
+      // Collect keyboard hardware metadata if available
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
       let keyboardMeta = {
         keyboard_polling_hz: 125,
         keyboard_name: 'Unknown',
@@ -129,6 +178,10 @@ export function useTypingTest() {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.post(`${API}/predict`, payload, { headers });
 
+<<<<<<< HEAD
+=======
+      // Persist session data locally
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
       if (window.electron?.ipcRenderer) {
         const elapsed = startTime.current ? (Date.now() - startTime.current) / 60000 : 1;
         const totalStrokes = keystrokeBuffer.current.length;
@@ -182,16 +235,26 @@ export function useTypingTest() {
     }
   }, []);
 
+<<<<<<< HEAD
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
 
+=======
+  // 4. useEffect hooks — declared AFTER all function declarations
+
+  // Attach IPC keystroke listener
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
   useEffect(() => {
     if (!window.electron?.ipcRenderer) return;
     const cleanup = window.electron.ipcRenderer.on('keystroke-event', processKeystroke);
     return () => { if (cleanup) cleanup(); };
   }, [processKeystroke]);
 
+<<<<<<< HEAD
+=======
+  // Handle 'setValidCount' custom event dispatched by the file-upload flow
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
   useEffect(() => {
     const handler = (e) => {
       setValidCount(e.detail);
@@ -199,19 +262,32 @@ export function useTypingTest() {
         const buf = JSON.parse(localStorage.getItem('temp_buffer') || '[]');
         keystrokeBuffer.current = buf;
       } catch {
+<<<<<<< HEAD
         // ignore
+=======
+        // ignore parse errors
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
       }
     };
     window.addEventListener('setValidCount', handler);
     return () => window.removeEventListener('setValidCount', handler);
   }, []);
 
+<<<<<<< HEAD
+=======
+  // Auto-analyse once the entire prompt has been typed
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
   useEffect(() => {
     if (state === 'ACTIVE' && cursor >= PROMPT_TEXT.length) {
       analyse();
     }
   }, [cursor, state, analyse]);
 
+<<<<<<< HEAD
+=======
+  // 5. Derived / computed values
+
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
   const computeMean = (arr, field) => {
     const vals = arr.map(x => x[field]).filter(v => v !== null && v !== undefined);
     return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
@@ -237,6 +313,10 @@ export function useTypingTest() {
     wpm: elapsed > 0 && validCount > 0 ? Math.round((validCount / 5) / elapsed) : 0,
   };
 
+<<<<<<< HEAD
+=======
+  // 6. Return
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
   return {
     state,
     cursor,
@@ -253,6 +333,7 @@ export function useTypingTest() {
     reset,
     PROMPT_TEXT,
   };
+<<<<<<< HEAD
 }
 =======
 export const startTest = () => {
@@ -261,3 +342,6 @@ export const startTest = () => {
   capture:start();
 };
 >>>>>>> ecad28e6d87a79b8e7cd64e3e57d1a72043ed757
+=======
+}
+>>>>>>> parent of ecad28e (Update useTypingTest.js to remove capture:setTappyMode call and directly call capture:start in startTest function)
