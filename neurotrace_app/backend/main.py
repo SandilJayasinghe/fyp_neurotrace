@@ -268,8 +268,10 @@ def generate_verdict(
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(request: PredictRequest):
-    print("First 10 key values:", [k['key'] for k in request.keystrokes[:10]])
-    print("Unique key values:", set(k['key'] for k in request.keystrokes))
+    print("First 10 key values:", [k.key for k in request.keystrokes[:10]])
+    print("Unique key values:", set(k.key for k in request.keystrokes))
+    print("First 10 key values:", [k.key for k in request.keystrokes[:10]])
+    print("Unique key values:", set(k.key for k in request.keystrokes))
     try:
         # Step 5: Validate keystrokes length
         if len(request.keystrokes) < 150:
@@ -284,13 +286,14 @@ def predict(request: PredictRequest):
         q_ms = 1000.0 / float(polling_hz)
 
         # 2. Build Features (polling-aware + motor-clean filtering)
+
         ks_dicts = [k.dict() for k in request.keystrokes]
         raw_ks_count = len(ks_dicts)
         print("[DEBUG] Number of raw keystrokes:", raw_ks_count)
         # Report cleaning stats (filter runs inside build_feature_matrix too)
         cleaned_ks = fe.motor_clean_filter(ks_dicts)
         cleaned_count = len(cleaned_ks)
-        removed_count = raw_ks_count - cleaned_count
+        removed_count = raw_ks_count - cleaned_ks.__len__()
         cleaning_pct = round((removed_count / max(raw_ks_count, 1)) * 100, 1)
         print(f"[DEBUG] Cleaned keystrokes: {cleaned_count}, Removed: {removed_count}, Cleaning %: {cleaning_pct}")
 
@@ -333,9 +336,14 @@ def predict(request: PredictRequest):
                 "pct": pct,
                 "value": val
             })
+        # Ensure required variables are always defined after all_features is created
+        top_feats = all_features[:5]
+        scorecard_rules = []
+        debug_logs = []
+        left_chars = set("12345qwertasdfgzxcvbQWERTASDFGZXCVB")
         right_chars = set("67890^&*()yuiophjklnmYUIOPHJKLNM")
-        left_count = sum(1 for k in ks_dicts if str(k.get('key', '')) in left_chars)
-        right_count = sum(1 for k in ks_dicts if str(k.get('key', '')) in right_chars)
+        left_count = sum(1 for k in request.keystrokes if str(k.dict().get('key', '')) in left_chars)
+        right_count = sum(1 for k in request.keystrokes if str(k.dict().get('key', '')) in right_chars)
         lr_ratio = left_count / max(right_count, 1)
 
         threshold_used = 0.65   # Raised from 0.5 — reduces false positives from free-text typing

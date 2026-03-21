@@ -2,9 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Activity, 
-  Dna, 
   RefreshCcw, 
-  ChevronRight, 
   Play, 
   AlertCircle,
   ShieldCheck,
@@ -13,27 +11,15 @@ import {
   Gauge,
   Cpu,
   Fingerprint,
-  Database,
   Eye,
-  Microscope,
-  Zap,
-  CheckCircle2,
   Lock,
   Keyboard
 } from 'lucide-react';
 import { useTypingTest } from '../hooks/useTypingTest';
-import { useTappyTest } from '../hooks/useTappyTest';
 import { PromptDisplay } from '../components/Parkinson/PromptDisplay';
-import { TappyDisplay } from '../components/TappyDisplay';
 import { MetricsVisualizer } from '../components/MetricsVisualizer';
-import { TAPPY_PROTOCOL } from '../constants/tappyProtocol';
 
-/**
- * Premium Screening Interface v3.1
- * Compact Dashboard Optimization | Global Scroll Integrity | Single Monitor Architecture
- */
 export function ParkinsonScreening({ onResult }) {
-  // Only Free-text mode
   const {
     state,
     cursor,
@@ -57,7 +43,6 @@ export function ParkinsonScreening({ onResult }) {
   const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef();
   const token = localStorage.getItem('token');
-  // Track if upload-triggered prediction is in progress
   const [uploadTriggered, setUploadTriggered] = useState(false);
   const [pendingAnalyse, setPendingAnalyse] = useState(false);
 
@@ -69,25 +54,12 @@ export function ParkinsonScreening({ onResult }) {
     }
   }, []);
 
-  // Trigger Redirect
   useEffect(() => {
-    // Only redirect if result is valid and not empty/null
     if (result && onResult && typeof result === 'object' && Object.keys(result).length > 0 && !error) {
       onResult(result);
     }
   }, [result, onResult, error]);
-  // Show error if backend fails or result is invalid
-  if (error) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 text-red-800 p-8">
-        <h1 className="text-3xl font-black mb-4">Something went wrong</h1>
-        <p className="mb-2">{error}</p>
-        <button onClick={reset} className="mt-4 px-6 py-3 bg-red-600 text-white rounded-xl font-bold">Try Again</button>
-      </div>
-    );
-  }
 
-  // Ensure redirect after upload prediction
   useEffect(() => {
     if (uploadTriggered && result && onResult) {
       setUploadTriggered(false);
@@ -95,7 +67,6 @@ export function ParkinsonScreening({ onResult }) {
     }
   }, [uploadTriggered, result, onResult]);
 
-  // After upload, call analyse only after validCount is set
   useEffect(() => {
     if (pendingAnalyse && validCount >= 150) {
       setPendingAnalyse(false);
@@ -103,7 +74,6 @@ export function ParkinsonScreening({ onResult }) {
     }
   }, [pendingAnalyse, validCount, analyse, token]);
 
-  // UI Key Guard (Prevents Space-Jump while allowing manual scroll)
   useEffect(() => {
     if (state === 'ACTIVE') {
       const preventJump = (e) => {
@@ -117,12 +87,12 @@ export function ParkinsonScreening({ onResult }) {
   }, [state]);
 
   const rawBuffer = JSON.parse(localStorage.getItem('temp_buffer') || '[]');
+  
   const handleConfirmIntegrity = async () => {
     setShowExplorer(false);
     if (canAnalyse) await analyse(token);
   };
 
-  // Handle upload (JSON/CSV)
   const handleFileUpload = async (e) => {
     setUploadError(null);
     const file = e.target.files[0];
@@ -149,17 +119,13 @@ export function ParkinsonScreening({ onResult }) {
         return;
       }
 
-      // --- Strict validation and cleaning ---
       const cleaned = keystrokes
         .map((k) => {
-          // Accept both string and number for numeric fields, coerce to float
           let key = typeof k.key === 'string' ? k.key : String(k.key);
           let hold_time = parseFloat(k.hold_time);
           let flight_time = k.flight_time === null || k.flight_time === undefined || k.flight_time === '' ? null : parseFloat(k.flight_time);
           let latency = k.latency === null || k.latency === undefined || k.latency === '' ? null : parseFloat(k.latency);
-          // Only allow L/R for key
           if (key !== 'L' && key !== 'R') return null;
-          // Range checks
           if (!(hold_time >= 0 && hold_time <= 10000)) return null;
           if (flight_time !== null && (flight_time < -5000 || flight_time > 20000)) return null;
           if (latency !== null && (latency < 0 || latency > 20000)) return null;
@@ -171,11 +137,8 @@ export function ParkinsonScreening({ onResult }) {
         setUploading(false);
         return;
       }
-      // Save to localStorage for compatibility
       localStorage.setItem('temp_buffer', JSON.stringify(cleaned));
-      // Set validCount to uploaded keystroke count so analyse will run
       if (typeof window !== 'undefined' && window.dispatchEvent) {
-        // Custom event to update validCount in useTypingTest
         window.dispatchEvent(new CustomEvent('setValidCount', { detail: cleaned.length }));
       }
       setUploadTriggered(true);
@@ -186,13 +149,20 @@ export function ParkinsonScreening({ onResult }) {
     setUploading(false);
   };
 
+  // MOVE ERROR CHECK HERE - AFTER ALL HOOKS
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 text-red-800 p-8">
+        <h1 className="text-3xl font-black mb-4">Something went wrong</h1>
+        <p className="mb-2">{error}</p>
+        <button onClick={reset} className="mt-4 px-6 py-3 bg-red-600 text-white rounded-xl font-bold">Try Again</button>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch relative pb-10">
-      
-      {/* 1. Integrated Side Monitor (ColSpan 4) */}
       <div className="lg:col-span-4 space-y-6 flex flex-col animate-in slide-in-from-left duration-700">
-        
-        {/* Master Control Hub */}
         <div className="bg-[#0a0f1d] p-7 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden flex-1 group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-[80px]" />
           
@@ -220,7 +190,6 @@ export function ParkinsonScreening({ onResult }) {
                  </div>
             </div>
 
-            {/* Instructions for Free Text Mode */}
             {state === 'IDLE' && (
               <div className="mb-2">
                 <p className="text-[10px] font-black text-sky-400 uppercase tracking-widest text-center">Free Text Typing Test</p>
@@ -228,7 +197,6 @@ export function ParkinsonScreening({ onResult }) {
               </div>
             )}
 
-            {/* Keyboard Hardware Strip */}
             {keyboardInfo ? (
               <div className={`px-4 py-2.5 rounded-xl border flex items-center justify-between text-[10px] font-bold uppercase tracking-widest ${
                 !keyboardInfo.keyboard_name || keyboardInfo.detection_method === 'assumed'
@@ -308,7 +276,6 @@ export function ParkinsonScreening({ onResult }) {
           </div>
         </div>
 
-        {/* Real-time Telemetry Grid */}
         <div className="bg-[#0a0f1d] p-7 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden">
             <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-2 italic">
                 <Gauge size={14} className="text-sky-400" /> Biometric Monitor
@@ -329,9 +296,7 @@ export function ParkinsonScreening({ onResult }) {
         </div>
       </div>
 
-      {/* 2. Interactive Prompt Display (ColSpan 8) */}
       <div className="lg:col-span-8 space-y-6 flex flex-col h-full animate-in zoom-in duration-700">
-        
         <div className="flex-1 min-h-[400px]">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
@@ -348,7 +313,6 @@ export function ParkinsonScreening({ onResult }) {
           )}
         </div>
 
-        {/* Global Protocol Status Bar */}
         <div className="p-10 bg-slate-950/20 rounded-[3rem] border border-slate-900 h-40 flex items-center justify-center relative overflow-hidden group">
              <AnimatePresence mode="wait">
                  {state === 'PROCESSING' ? (

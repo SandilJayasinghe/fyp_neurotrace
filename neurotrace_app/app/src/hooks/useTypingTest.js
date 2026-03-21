@@ -9,8 +9,7 @@ export const PROMPT_TEXT =
   "She typed slowly but deliberately, pressing each key with measured force as the clock ticked quietly on the wall.";
 
 export function useTypingTest() {
-  // 1. All useState declarations
-  const [state, setState] = useState('IDLE'); // IDLE | ACTIVE | PROCESSING | RESULTS
+  const [state, setState] = useState('IDLE');
   const [cursor, setCursor] = useState(0);
   const [charStatuses, setCharStatuses] = useState(() => Array(PROMPT_TEXT.length).fill('pending'));
   const [validCount, setValidCount] = useState(0);
@@ -19,28 +18,24 @@ export function useTypingTest() {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 2. All useRef declarations
   const keystrokeBuffer = useRef([]);
   const metricsWindow = useRef([]);
   const sessionId = useRef(null);
   const startTime = useRef(null);
-  const cursorRef = useRef(0);       // Mirrors cursor for use inside callbacks
-  const errorCountRef = useRef(0);   // Mirrors errorCount for use inside callbacks
-
-  // 3. Function declarations — all declared BEFORE any useEffect that references them
+  const cursorRef = useRef(0);
+  const errorCountRef = useRef(0);
+  const stateRef = useRef('IDLE');
 
   const processKeystroke = useCallback((event, packet) => {
-    if (state !== 'ACTIVE') return;
+    if (stateRef.current !== 'ACTIVE') return;
 
     const typedChar = packet.char;
     const expectedChar = PROMPT_TEXT[cursorRef.current];
 
-    // Update rolling metrics window (last 30 keystrokes)
     metricsWindow.current.push(packet);
     if (metricsWindow.current.length > 30) metricsWindow.current.shift();
 
     if (typedChar === expectedChar) {
-      // Correct keystroke
       const pos = cursorRef.current;
       setCharStatuses(prev => {
         const next = [...prev];
@@ -57,7 +52,6 @@ export function useTypingTest() {
         latency: packet.latency ?? null,
       });
     } else {
-      // Incorrect keystroke — mark current position but do not advance cursor
       const pos = cursorRef.current;
       setCharStatuses(prev => {
         const next = [...prev];
@@ -67,10 +61,9 @@ export function useTypingTest() {
       errorCountRef.current += 1;
       setErrorCount(errorCountRef.current);
     }
-  }, [state]);
+  }, []);
 
   const startTest = useCallback(async () => {
-    // Reset all tracking state
     cursorRef.current = 0;
     errorCountRef.current = 0;
     setCursor(0);
@@ -86,7 +79,6 @@ export function useTypingTest() {
 
     if (window.electron?.ipcRenderer) {
       try {
-        await window.electron.ipcRenderer.invoke('capture:setTappyMode', false);
         await window.electron.ipcRenderer.invoke('capture:start');
       } catch (e) {
         console.warn('[useTypingTest] Electron capture start failed:', e);
@@ -107,7 +99,6 @@ export function useTypingTest() {
     }
 
     try {
-      // Collect keyboard hardware metadata if available
       let keyboardMeta = {
         keyboard_polling_hz: 125,
         keyboard_name: 'Unknown',
@@ -137,7 +128,6 @@ export function useTypingTest() {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.post(`${API}/predict`, payload, { headers });
 
-      // Persist session data locally
       if (window.electron?.ipcRenderer) {
         const elapsed = startTime.current ? (Date.now() - startTime.current) / 60000 : 1;
         const totalStrokes = keystrokeBuffer.current.length;
@@ -191,16 +181,16 @@ export function useTypingTest() {
     }
   }, []);
 
-  // 4. useEffect hooks — declared AFTER all function declarations
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
-  // Attach IPC keystroke listener
   useEffect(() => {
     if (!window.electron?.ipcRenderer) return;
     const cleanup = window.electron.ipcRenderer.on('keystroke-event', processKeystroke);
     return () => { if (cleanup) cleanup(); };
   }, [processKeystroke]);
 
-  // Handle 'setValidCount' custom event dispatched by the file-upload flow
   useEffect(() => {
     const handler = (e) => {
       setValidCount(e.detail);
@@ -208,21 +198,18 @@ export function useTypingTest() {
         const buf = JSON.parse(localStorage.getItem('temp_buffer') || '[]');
         keystrokeBuffer.current = buf;
       } catch {
-        // ignore parse errors
+        // ignore
       }
     };
     window.addEventListener('setValidCount', handler);
     return () => window.removeEventListener('setValidCount', handler);
   }, []);
 
-  // Auto-analyse once the entire prompt has been typed
   useEffect(() => {
     if (state === 'ACTIVE' && cursor >= PROMPT_TEXT.length) {
       analyse();
     }
   }, [cursor, state, analyse]);
-
-  // 5. Derived / computed values
 
   const computeMean = (arr, field) => {
     const vals = arr.map(x => x[field]).filter(v => v !== null && v !== undefined);
@@ -249,7 +236,6 @@ export function useTypingTest() {
     wpm: elapsed > 0 && validCount > 0 ? Math.round((validCount / 5) / elapsed) : 0,
   };
 
-  // 6. Return
   return {
     state,
     cursor,

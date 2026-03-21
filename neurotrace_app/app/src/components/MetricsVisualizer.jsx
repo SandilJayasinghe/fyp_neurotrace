@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
-  Download,
   Activity,
   BarChart3,
   Clock,
@@ -10,42 +9,40 @@ import {
   FileJson,
   FileSpreadsheet,
   TrendingDown,
-  ShieldCheck,
   Cpu,
   ArrowRight
 } from 'lucide-react';
 
-/**
- * Premium Dark Theme Biometrics Explorer
- * Support for Pre-Submission Review & Inference Progression
- */
 export function MetricsVisualizer({ keystrokes, stats, onClose, onConfirm, canAnalyse }) {
   const htCanvasRef = useRef(null);
   const ikiCanvasRef = useRef(null);
   
   useEffect(() => {
     if (!keystrokes || keystrokes.length < 2) return;
+    
     drawTrace(htCanvasRef, keystrokes.map(k => k.hold_time), '#38bdf8', 'Hold Time (ms)', stats.meanHT);
     drawTrace(ikiCanvasRef, keystrokes.map(k => k.latency).filter(i => i !== null), '#818cf8', 'Inter-Key Interval (ms)', stats.meanIKI);
-  }, [keystrokes]);
+  }, [keystrokes, stats]);
 
   const drawTrace = (ref, data, color, label, mean) => {
+    if (!ref.current || !data || data.length === 0) return;
+    
     const canvas = ref.current;
-    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
 
     const yMax = Math.max(...data) * 1.2 || 300;
-    const xStep = w / (data.length - 1);
+    const xStep = w / (data.length - 1 || 1);
 
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 0; i <= 4; i++) {
         const y = h - (i * h / 4);
-        ctx.moveTo(0, y); ctx.lineTo(w, y);
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
     }
     ctx.stroke();
 
@@ -62,7 +59,8 @@ export function MetricsVisualizer({ keystrokes, stats, onClose, onConfirm, canAn
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    ctx.lineTo(w, h); ctx.lineTo(0, h);
+    ctx.lineTo(w, h);
+    ctx.lineTo(0, h);
     ctx.fillStyle = grad;
     ctx.fill();
 
@@ -70,7 +68,8 @@ export function MetricsVisualizer({ keystrokes, stats, onClose, onConfirm, canAn
     ctx.setLineDash([8, 8]);
     ctx.strokeStyle = '#ffffff22';
     ctx.beginPath();
-    ctx.moveTo(0, meanY); ctx.lineTo(w, meanY);
+    ctx.moveTo(0, meanY);
+    ctx.lineTo(w, meanY);
     ctx.stroke();
     ctx.setLineDash([]);
 
