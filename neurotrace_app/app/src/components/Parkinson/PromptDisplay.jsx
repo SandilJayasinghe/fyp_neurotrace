@@ -1,12 +1,11 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { memo } from 'react';
 import { Keyboard, Activity, Info, ShieldCheck } from 'lucide-react';
 
 /**
  * Premium Dark Theme Prompt Display
- * Strictly Interactive & Live Validation
+ * Memoized for performance — only re-renders when cursor/charStatuses change.
  */
-export function PromptDisplay({ 
+export const PromptDisplay = memo(function PromptDisplay({ 
   cursor = 0,
   charStatuses = [],
   state = "IDLE",
@@ -28,29 +27,24 @@ export function PromptDisplay({
 
       {/* 3. Interactive Prompt Area */}
       <div className="relative w-full flex-1 bg-slate-950/40 backdrop-blur-sm p-9 rounded-[3rem] border border-slate-800/50 shadow-inner group/prompt">
-        <p className="relative z-10 text-lg font-medium leading-[1.8] select-none cursor-default font-mono transition-all text-justify break-words tracking-tight">
+        <p className="relative z-10 text-lg font-medium leading-[1.8] select-none cursor-default font-mono text-justify break-words tracking-tight">
           {PROMPT_TEXT.split('').map((char, i) => {
-            let style = "text-slate-700/60"; // pending
-            let cursorStyle = "";
-            let glow = "";
+            const status = charStatuses[i];
+            const isCurrent = i === cursor && state === 'ACTIVE';
 
-            if (charStatuses[i] === 'correct') {
-              style = "text-slate-100";
-            } else if (charStatuses[i] === 'incorrect') {
-              style = "text-rose-500 animate-shake";
-              glow = "drop-shadow-[0_0_8px_rgba(244,63,94,0.4)]";
-            }
-
-            if (i === cursor && state === 'ACTIVE') {
-              cursorStyle = "border-b-[3px] border-sky-400 pb-1 text-sky-300 animate-[pulse_1.5s_infinite] shadow-[0_10px_10px_-5px_rgba(56,189,248,0.2)]";
-              style = "text-sky-300";
+            let className;
+            if (isCurrent) {
+              className = "text-sky-300 border-b-[3px] border-sky-400 pb-1 shadow-[0_10px_10px_-5px_rgba(56,189,248,0.2)]";
+            } else if (status === 'correct') {
+              className = "text-slate-100";
+            } else if (status === 'incorrect') {
+              className = "text-rose-500";
+            } else {
+              className = "text-slate-700/60";
             }
 
             return (
-              <span 
-                key={i} 
-                className={`${style} ${cursorStyle} ${glow} transition-all duration-200 inline-block`}
-              >
+              <span key={i} className={`${className} inline`}>
                 {char === ' ' ? '\u00A0' : char}
               </span>
             );
@@ -78,4 +72,4 @@ export function PromptDisplay({
       </div>
     </div>
   );
-}
+});

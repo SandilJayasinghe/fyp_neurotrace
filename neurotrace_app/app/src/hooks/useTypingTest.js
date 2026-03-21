@@ -13,6 +13,7 @@ export function useTypingTest() {
   const [state, setState] = useState('IDLE'); // IDLE | ACTIVE | PROCESSING | RESULTS
   const [cursor, setCursor] = useState(0);
   const [charStatuses, setCharStatuses] = useState(() => Array(PROMPT_TEXT.length).fill('pending'));
+  const charStatusesRef = useRef(Array(PROMPT_TEXT.length).fill('pending'));
   const [validCount, setValidCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
   const [result, setResult] = useState(null);
@@ -40,13 +41,10 @@ export function useTypingTest() {
     if (metricsWindow.current.length > 30) metricsWindow.current.shift();
 
     if (typedChar === expectedChar) {
-      // Correct keystroke
+      // Correct keystroke — mutate ref, then copy for state
       const pos = cursorRef.current;
-      setCharStatuses(prev => {
-        const next = [...prev];
-        next[pos] = 'correct';
-        return next;
-      });
+      charStatusesRef.current[pos] = 'correct';
+      setCharStatuses(charStatusesRef.current.slice());
       cursorRef.current += 1;
       setCursor(cursorRef.current);
       setValidCount(prev => prev + 1);
@@ -59,11 +57,8 @@ export function useTypingTest() {
     } else {
       // Incorrect keystroke — mark current position but do not advance cursor
       const pos = cursorRef.current;
-      setCharStatuses(prev => {
-        const next = [...prev];
-        next[pos] = 'incorrect';
-        return next;
-      });
+      charStatusesRef.current[pos] = 'incorrect';
+      setCharStatuses(charStatusesRef.current.slice());
       errorCountRef.current += 1;
       setErrorCount(errorCountRef.current);
     }
@@ -74,7 +69,8 @@ export function useTypingTest() {
     cursorRef.current = 0;
     errorCountRef.current = 0;
     setCursor(0);
-    setCharStatuses(Array(PROMPT_TEXT.length).fill('pending'));
+    charStatusesRef.current = Array(PROMPT_TEXT.length).fill('pending');
+    setCharStatuses(charStatusesRef.current.slice());
     setValidCount(0);
     setErrorCount(0);
     setResult(null);
@@ -85,11 +81,16 @@ export function useTypingTest() {
     startTime.current = Date.now();
 
     if (window.electron?.ipcRenderer) {
+      // Best-effort: set non-tappy mode. Failure here must not block capture:start.
       try {
         await window.electron.ipcRenderer.invoke('capture:setTappyMode', false);
+      } catch (e) {
+        console.warn('[useTypingTest] setTappyMode failed (non-critical):', e);
+      }
+      try {
         await window.electron.ipcRenderer.invoke('capture:start');
       } catch (e) {
-        console.warn('[useTypingTest] Electron capture start failed:', e);
+        console.warn('[useTypingTest] capture:start failed:', e);
       }
     }
 
@@ -178,7 +179,8 @@ export function useTypingTest() {
     cursorRef.current = 0;
     errorCountRef.current = 0;
     setCursor(0);
-    setCharStatuses(Array(PROMPT_TEXT.length).fill('pending'));
+    charStatusesRef.current = Array(PROMPT_TEXT.length).fill('pending');
+    setCharStatuses(charStatusesRef.current.slice());
     setValidCount(0);
     setErrorCount(0);
     setResult(null);

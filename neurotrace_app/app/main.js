@@ -88,6 +88,10 @@ function registerHandlers() {
       captureService?.stop();
       return true;
   });
+  handle('capture:setTappyMode', (event, enabled) => {
+      captureService?.setTappyMode(enabled);
+      return true;
+  });
   handle('keyboard:getInfo', () => keyboardInfo);
 
   handle('session:save', async (event, session) => {

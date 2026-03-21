@@ -514,7 +514,7 @@ export default function ResultsPage({ result, onRestart }) {
           </AnimatePresence>
         </section>
 
-        {/* SECTION 5 — Decision Rules */}
+        {/* SECTION 5 — Model Explanation */}
         <section className="bg-[#0a0f1d] border border-slate-800 rounded-[2.5rem] shadow-2xl overflow-hidden">
           <button 
             onClick={() => setShowRules(!showRules)}
@@ -525,9 +525,9 @@ export default function ResultsPage({ result, onRestart }) {
                 <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
                   <Target size={20} />
                 </div>
-                <h2 className="text-lg font-black text-white italic uppercase tracking-widest">Decision Rules</h2>
+                <h2 className="text-lg font-black text-white italic uppercase tracking-widest">Model Explanation</h2>
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 pl-14">How the model scored each tree for this session</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 pl-14">Feature contributions ranked by importance</p>
             </div>
             {showRules ? <ChevronUp className="text-sky-400" /> : <ChevronDown className="text-slate-500" />}
           </button>
@@ -541,30 +541,35 @@ export default function ResultsPage({ result, onRestart }) {
                 className="border-t border-slate-800"
               >
                 <div className="p-8 space-y-3">
-                  {result.scorecard_rules?.slice(0, 10).map((rule, idx) => {
-                    const isPositive = rule.contribution > 0;
-                    const op = rule.fired_left ? '<=' : '>';
+                  {result.all_features?.filter(f => f.pct > 0.5).slice(0, 12).map((feat, idx) => {
+                    const isUp = feat.direction === 'UP';
+                    const maxPct = result.all_features.find(f => f.pct > 0.5)?.pct || 1;
+                    const barPct = Math.min((feat.pct / maxPct) * 100, 100);
                     return (
-                      <div key={`rule-${idx}`} className="bg-slate-900/50 border border-slate-800 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 font-mono text-xs">
-                        <div className="text-slate-400">
-                          <span className="text-slate-600 font-bold mr-3 uppercase">Tree {rule.tree_index}</span>
-                          IF <span className="text-sky-300 font-bold uppercase mx-1">{formatName(rule.feature)}</span> {op} <span className="text-slate-300">{rule.threshold.toFixed(4)}</span>
-                          <span className="block md:inline md:ml-4 text-slate-500 mt-2 md:mt-0">
-                            → val was {rule.user_value.toFixed(4)}
+                      <div key={`feat-${idx}`} className="bg-slate-900/50 border border-slate-800 p-4 rounded-xl font-mono text-xs">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-slate-300 font-bold uppercase tracking-widest truncate mr-4">
+                            #{idx + 1} {formatName(feat.name)}
                           </span>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${isUp ? 'text-rose-400 bg-rose-500/10 border-rose-500/20' : 'text-teal-400 bg-teal-500/10 border-teal-500/20'}`}>
+                              {isUp ? '\u2191 higher' : '\u2193 lower'}
+                            </span>
+                            <span className="text-slate-400 tabular-nums">{feat.pct.toFixed(2)}%</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-slate-500">→</span>
-                          <span className={`font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                            {isPositive ? '+' : ''}{rule.contribution.toFixed(4)}
-                          </span>
+                        <div className="h-1 w-full bg-slate-900 rounded overflow-hidden">
+                          <div className={`h-full ${isUp ? 'bg-rose-500' : 'bg-teal-500'} opacity-70`} style={{ width: `${barPct}%` }} />
                         </div>
                       </div>
                     );
                   })}
-                  <div className="mt-8 pt-6 border-t border-slate-800 text-right flex flex-col items-end gap-1 font-mono text-[10px] uppercase tracking-widest font-black text-slate-400">
-                    <p>Total score before threshold: {(result.scorecard_rules || []).reduce((acc, rule) => acc + rule.contribution, 0).toFixed(4)}</p>
-                    <p>Threshold for positive flag: {result.threshold_used?.toFixed(4) || 0.5}</p>
+                  {(!result.all_features || result.all_features.filter(f => f.pct > 0.5).length === 0) && (
+                    <p className="text-slate-500 text-sm text-center py-6">No feature explanation data available for this session.</p>
+                  )}
+                  <div className="mt-6 pt-4 border-t border-slate-800 text-right font-mono text-[10px] uppercase tracking-widest font-black text-slate-500">
+                    <p>Decision threshold: {result.threshold_used?.toFixed(2) || '0.65'} probability</p>
+                    <p>Session score: {(result.probability * 100).toFixed(1)}%</p>
                   </div>
                 </div>
               </motion.div>
@@ -572,7 +577,7 @@ export default function ResultsPage({ result, onRestart }) {
           </AnimatePresence>
         </section>
 
-        {/* SECTION 6 — Disclaimer */}
+                {/* SECTION 6 — Disclaimer */}
         <section className="bg-amber-500/10 border border-amber-500/20 p-6 rounded-2xl flex items-start gap-4">
           <AlertTriangle className="text-amber-500 flex-shrink-0 mt-1" size={24} />
           <p className="text-amber-500 text-sm leading-relaxed font-medium">

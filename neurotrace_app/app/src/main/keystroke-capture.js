@@ -15,6 +15,7 @@ export class KeystrokeCaptureService {
     this.lastKeydown_t = null; 
     this.pendingKeydowns = {}; 
     this.isShiftPressed = false;
+    this.tappyMode = false; // Default to standard typing
     this.session_id = `session_${Date.now()}_${Math.floor(Math.random()*1e6)}`;
 
     console.log('[Session] Keystroke listener initialized.');
@@ -88,7 +89,7 @@ export class KeystrokeCaptureService {
 
         // Add session_id and datetime
         const payload = {
-          key: pending.hand, // FIX: send 'L' or 'R' for key
+          key: this.tappyMode ? pending.hand : finalChar, // Tappy expects 'L'/'R', Typing expects actual char
           char: finalChar,
           hand: pending.hand,
           hold_time,
@@ -110,6 +111,11 @@ export class KeystrokeCaptureService {
 
       delete this.pendingKeydowns[event.keycode];
     });
+  }
+
+  setTappyMode(enabled) {
+    this.tappyMode = !!enabled;
+    console.log(`[Capture] Tappy mode is now ${this.tappyMode ? 'ON' : 'OFF'}`);
   }
 
   start() {

@@ -287,7 +287,7 @@ def predict(request: PredictRequest):
 
         # 2. Build Features (polling-aware + motor-clean filtering)
 
-        ks_dicts = [k.dict() for k in request.keystrokes]
+        ks_dicts = [k.model_dump() for k in request.keystrokes]
         raw_ks_count = len(ks_dicts)
         print("[DEBUG] Number of raw keystrokes:", raw_ks_count)
         # Report cleaning stats (filter runs inside build_feature_matrix too)
@@ -334,7 +334,8 @@ def predict(request: PredictRequest):
                 "raw_name": r_name,
                 "importance": imp,
                 "pct": pct,
-                "value": val
+                "value": val,
+                "direction": "UP" if val >= 0 else "DOWN",
             })
         # Ensure required variables are always defined after all_features is created
         top_feats = all_features[:5]
@@ -342,8 +343,8 @@ def predict(request: PredictRequest):
         debug_logs = []
         left_chars = set("12345qwertasdfgzxcvbQWERTASDFGZXCVB")
         right_chars = set("67890^&*()yuiophjklnmYUIOPHJKLNM")
-        left_count = sum(1 for k in request.keystrokes if str(k.dict().get('key', '')) in left_chars)
-        right_count = sum(1 for k in request.keystrokes if str(k.dict().get('key', '')) in right_chars)
+        left_count = sum(1 for k in request.keystrokes if str(k.model_dump().get('key', '')) in left_chars)
+        right_count = sum(1 for k in request.keystrokes if str(k.model_dump().get('key', '')) in right_chars)
         lr_ratio = left_count / max(right_count, 1)
 
         threshold_used = 0.65   # Raised from 0.5 — reduces false positives from free-text typing
@@ -445,7 +446,7 @@ def predict(request: PredictRequest):
 
 @app.post("/features")
 def features(request: PredictRequest):
-    ks_dicts = [k.dict() for k in request.keystrokes]
+    ks_dicts = [k.model_dump() for k in request.keystrokes]
     X_raw = fe.build_feature_matrix(ks_dicts)
     if X_raw is None:
         raise HTTPException(status_code=422, detail="Insufficient data.")

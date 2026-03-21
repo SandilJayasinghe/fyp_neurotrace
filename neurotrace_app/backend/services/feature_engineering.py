@@ -78,7 +78,16 @@ def extract_features(ht, ft, lat, key=None):
     lat_f = [lm, float(np.median(lat)), ls, float(np.percentile(lat, 90)), float(lat.max()), float(np.percentile(lat, 10)), lsk, lcv]
     print("[DEBUG] Feature stats: ht_f", ht_f, "ft_f", ft_f, "lat_f", lat_f)
     if key is not None:
-        def _to_h(k): return 0 if k == 'L' else (1 if k == 'R' else 2)
+        # QWERTY hand assignment: matches handMap.js exactly
+        _LEFT_CHARS = set('`12345qwertasdfgzxcvbQWERTASDFGZXCVB')
+        _RIGHT_CHARS = set("67890-=yuiophjklnmYUIOPHJKLNM[];'\\,./")
+        def _to_h(k):
+            if k == 'L': return 0
+            if k == 'R': return 1
+            ks = str(k)[:1] if k else ''
+            if ks in _LEFT_CHARS: return 0
+            if ks in _RIGHT_CHARS: return 1
+            return 2
         h = np.array([_to_h(k) for k in key], dtype=np.int8)
         med_l = float(np.median(lat))
         hand_f = [float(np.median(lat[1:][(h[:-1] == a) & (h[1:] == b)])) if ((h[:-1] == a) & (h[1:] == b)).any() else med_l for a, b in [(0, 0), (0, 1), (1, 0), (1, 1)]]
