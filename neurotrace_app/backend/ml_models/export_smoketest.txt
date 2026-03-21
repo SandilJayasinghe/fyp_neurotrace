@@ -1,0 +1,17 @@
+Export Smoke Test Report
+Generated: 2026-03-20T18:18:23Z
+============================================================
+PASSED: 11  FAILED: 0
+============================================================
+
+  PASS  preprocessing.pkl loads: scaler=RobustScaler  n_feats=80
+  PASS  teacher bundle loads: models=['RF', 'LGBM', 'ET', 'HGB', 'GBM', 'XGB', 'CAT']  weights_sum=1.0000
+  PASS  teacher predict (5 samples): probs=[0.804, 0.327, 0.624, 0.884, 0.493]  AUC_5=0.7500
+  PASS  teacher threshold applied: labels=[1, 0, 1, 1, 0]
+  PASS  AIM bundle loads: model_type=student_aim  n_estimators=15  feats=27
+  PASS  AIM predict (5 samples): probs=[0.88, 0.81, 0.883, 0.939, 0.749]
+  PASS  AIM predict consistency with original: max_diff=0.000000  OK
+  PASS  teacher full test AUC matches: AUC=0.7774  expected=0.7935  delta=0.016022
+  PASS  metadata JSON loads and is valid: version=2.0.0  teacher_auc=0.7935
+  PASS  AIM top features present: top_feat=max_ft_iqr  imp=0.2796
+  PASS  file hashes consistent: teacher_md5=f09ee511  aim_md5=dfc25206
