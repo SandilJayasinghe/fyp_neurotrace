@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 
@@ -253,3 +254,10 @@ export function useTypingTest() {
     PROMPT_TEXT,
   };
 }
+=======
+export const startTest = () => {
+  // Remove this problematic line:
+  // capture:setTappyMode();
+  capture:start();
+};
+>>>>>>> ecad28e6d87a79b8e7cd64e3e57d1a72043ed757
