@@ -20,6 +20,12 @@ import {
 import { RiskGauge } from '../components/Parkinson/RiskGauge';
 import { addSessionResult, getSessionHistory, getMultiSessionVerdict } from '../hooks/useSessionHistory';
 import { generateReportHTML } from '../utils/reportGenerator';
+import { 
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
+  ResponsiveContainer, Tooltip as RechartsTooltip, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell,
+  AreaChart, Area
+} from 'recharts';
 
 export default function ResultsPage({ result, onRestart }) {
   const [uploading, setUploading] = useState(false);
@@ -414,20 +420,47 @@ export default function ResultsPage({ result, onRestart }) {
                   </span>
                 </div>
                 <p className="text-slate-300 text-[13px] leading-relaxed">{multiVerdict.message}</p>
-                {/* Session history dots */}
+                {/* Session history visualizer */}
                 {multiVerdict.totalSessions > 0 && (
-                  <div className="flex items-center gap-2 mt-3">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mr-1">History:</span>
-                    {sessionHistory.slice(-3).map((s, i) => {
-                      const prob = typeof s.probability === 'number' ? s.probability : (parseFloat(s.probability) || 0);
-                      const elevated = prob >= (result.threshold_used || 0.65);
-                      return (
-                        <div key={i} title={`Session ${i+1}: ${(prob*100).toFixed(1)}%`}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black border ${elevated ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'}`}>
-                          {(prob*100).toFixed(0)}
-                        </div>
-                      );
-                    })}
+                  <div className="mt-4 border-t border-slate-500/20 pt-4 flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mr-1">Recent:</span>
+                      {sessionHistory.slice(-3).map((s, i) => {
+                        const prob = typeof s.probability === 'number' ? s.probability : (parseFloat(s.probability) || 0);
+                        const elevated = prob >= (result.threshold_used || 0.65);
+                        return (
+                          <div key={i} title={`Session ${i+1}: ${(prob*100).toFixed(1)}%`}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black border ${elevated ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'}`}>
+                            {(prob*100).toFixed(0)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {sessionHistory.length >= 2 && (
+                      <div className="h-16 w-full opacity-60 hover:opacity-100 transition-opacity">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={sessionHistory.slice(-10).map((s, idx) => ({ 
+                             name: `S${idx+1}`, 
+                             prob: (typeof s.probability === 'number' ? s.probability : (parseFloat(s.probability) || 0)) * 100 
+                          }))}>
+                            <defs>
+                              <linearGradient id="colorProb" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={cfg.titleColor === 'text-rose-400' ? '#f43f5e' : cfg.titleColor === 'text-amber-400' ? '#fbbf24' : '#38bdf8'} stopOpacity={0.5}/>
+                                <stop offset="95%" stopColor={cfg.titleColor === 'text-rose-400' ? '#f43f5e' : cfg.titleColor === 'text-amber-400' ? '#fbbf24' : '#38bdf8'} stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <RechartsTooltip 
+                               contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase' }}
+                               itemStyle={{ color: '#fff' }}
+                               formatter={(val) => [`${val.toFixed(1)}%`, 'Signal']}
+                               labelStyle={{ display: 'none' }}
+                               cursor={{ stroke: '#475569', strokeWidth: 1, strokeDasharray: '3 3' }}
+                            />
+                            <Area type="monotone" dataKey="prob" stroke={cfg.titleColor === 'text-rose-400' ? '#f43f5e' : cfg.titleColor === 'text-amber-400' ? '#fbbf24' : '#38bdf8'} strokeWidth={2} fillOpacity={1} fill="url(#colorProb)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -526,6 +559,34 @@ export default function ResultsPage({ result, onRestart }) {
               <h2 className="text-xl font-black text-white italic uppercase tracking-widest">Diagnostic Signatures</h2>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mt-1">Top 5 factors ranked by model importance</p>
             </div>
+          </div>
+
+          {/* Radar Chart Visualization */}
+          <div className="w-full h-80 mb-10 overflow-hidden bg-slate-900/40 rounded-3xl border border-slate-800 flex items-center justify-center p-4 shadow-inner">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart 
+                cx="50%" cy="50%" outerRadius="75%" 
+                data={result.top5_features?.map(feat => {
+                  const rawLabel = getLayman(feat.name).label;
+                  const label = rawLabel.includes('(') ? rawLabel.split(' (')[0].trim() : rawLabel;
+                  return {
+                    subject: label.substring(0, 16),
+                    importance: feat.pct,
+                    fullMark: Math.max(...(result.top5_features.map(f => f.pct))) * 1.1
+                  };
+                }) || []}
+              >
+                <PolarGrid stroke="#334155" />
+                <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: '900', letterSpacing: '0.05em' }} />
+                <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '11px', textTransform: 'uppercase', fontWeight: '900', letterSpacing: '0.1em' }}
+                  itemStyle={{ color: '#38bdf8' }}
+                  formatter={(value) => [`${value.toFixed(1)}%`, 'Weight']}
+                />
+                <Radar name="Model Focus" dataKey="importance" stroke="#0ea5e9" strokeWidth={2} fill="#38bdf8" fillOpacity={0.3} />
+              </RadarChart>
+            </ResponsiveContainer>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
@@ -671,35 +732,49 @@ export default function ResultsPage({ result, onRestart }) {
                 className="border-t border-slate-800"
               >
                 <div className="p-8 space-y-3">
-                  {result.all_features?.filter(f => f.pct > 0.5).slice(0, 12).map((feat, idx) => {
-                    const isUp = feat.direction === 'UP';
-                    const maxPct = result.all_features.find(f => f.pct > 0.5)?.pct || 1;
-                    const barPct = Math.min((feat.pct / maxPct) * 100, 100);
-                    return (
-                      <div key={`feat-${idx}`} className="bg-slate-900/50 border border-slate-800 p-4 rounded-xl font-mono text-xs">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-slate-300 font-bold uppercase tracking-widest truncate mr-4">
-                            #{idx + 1} {formatName(feat.name)}
-                          </span>
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${isUp ? 'text-rose-400 bg-rose-500/10 border-rose-500/20' : 'text-teal-400 bg-teal-500/10 border-teal-500/20'}`}>
-                              {isUp ? '\u2191 higher' : '\u2193 lower'}
-                            </span>
-                            <span className="text-slate-400 tabular-nums">{feat.pct.toFixed(2)}%</span>
-                          </div>
-                        </div>
-                        <div className="h-1 w-full bg-slate-900 rounded overflow-hidden">
-                          <div className={`h-full ${isUp ? 'bg-rose-500' : 'bg-teal-500'} opacity-70`} style={{ width: `${barPct}%` }} />
+                  {(() => {
+                    const barData = result.all_features?.filter(f => f.pct > 0.5).slice(0, 12).map(feat => {
+                      const rawLabel = getLayman(feat.name).label;
+                      const label = rawLabel.includes('(') ? rawLabel.split(' (')[0].trim() : rawLabel;
+                      return {
+                        name: label.substring(0, 20),
+                        importance: feat.pct,
+                        direction: feat.direction,
+                      };
+                    }) || [];
+                    
+                    return barData.length > 0 ? (
+                      <div className="h-[400px] w-full mt-4 pr-6">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={barData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                            <XAxis type="number" stroke="#64748b" tickFormatter={(v) => `${v}%`} />
+                            <YAxis dataKey="name" type="category" stroke="#94a3b8" width={100} tick={{fontSize: 10, fontWeight: 'bold'}} />
+                            <RechartsTooltip 
+                              cursor={{fill: '#0f172a'}}
+                              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                              itemStyle={{ color: '#38bdf8' }}
+                              formatter={(val) => [`${val.toFixed(2)}%`, 'Impact']}
+                            />
+                            <Bar dataKey="importance" radius={[0, 4, 4, 0]}>
+                              {barData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.direction === 'UP' ? '#f43f5e' : '#14b8a6'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                        <div className="flex items-center gap-6 justify-center mt-6 border-t border-slate-800/50 pt-4">
+                           <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-rose-500 block"></span><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Increased Risk</span></div>
+                           <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-teal-500 block"></span><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Decreased Risk</span></div>
                         </div>
                       </div>
+                    ) : (
+                      <p className="text-slate-500 text-sm text-center py-6">No feature explanation data available for this session.</p>
                     );
-                  })}
-                  {(!result.all_features || result.all_features.filter(f => f.pct > 0.5).length === 0) && (
-                    <p className="text-slate-500 text-sm text-center py-6">No feature explanation data available for this session.</p>
-                  )}
-                  <div className="mt-6 pt-4 border-t border-slate-800 text-right font-mono text-[10px] uppercase tracking-widest font-black text-slate-500">
+                  })()}
+                  <div className="mt-8 pt-4 text-right font-mono text-[10px] uppercase tracking-widest font-black text-slate-500">
                     <p>Decision threshold: {result.threshold_used?.toFixed(2) || '0.65'} probability</p>
-                    <p>Session score: {(result.probability * 100).toFixed(1)}%</p>
+                    <p>Session score: {((typeof result.probability === 'number' ? result.probability : parseFloat(result.probability) || 0) * 100).toFixed(1)}%</p>
                   </div>
                 </div>
               </motion.div>
