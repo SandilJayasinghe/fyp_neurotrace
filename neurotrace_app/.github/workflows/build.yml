@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -30,7 +32,8 @@ jobs:
         run: npm run electron:build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CI: false
+          # Some versions of electron-builder need this for subdirectories:
+          # ELECTRON_BUILDER_BINARIES_DIR: ./dist
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
