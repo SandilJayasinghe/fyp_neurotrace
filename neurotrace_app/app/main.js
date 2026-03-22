@@ -23,7 +23,7 @@ function startBackend() {
     const backendRoot = path.join(__dirname, '..', 'backend');
     const pythonPath = process.platform === 'win32' ? 'python' : 'python3';
     
-    backendProcess = spawn(pythonPath, ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8421'], {
+    backendProcess = spawn(pythonPath, ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000'], {
         cwd: backendRoot
     });
 
