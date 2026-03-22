@@ -8,3 +8,6 @@ lightgbm>=4.0.0
 xgboost>=2.0.0
 catboost>=1.2.0
 sqlmodel>=0.0.14
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+python-multipart>=0.0.9
