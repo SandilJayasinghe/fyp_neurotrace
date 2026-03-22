@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 # Step 5 Requirement: Add models/ to sys.path
-MODEL_DIR = Path(__file__).parent / 'models'
+MODEL_DIR = Path(__file__).parent / 'ml_models'
 sys.path.append(str(MODEL_DIR))
 
 # --- MODEL HYDRATION SYNC (PICKLE) ---
