@@ -95,7 +95,7 @@ function ProfilePopup({ user, onClose }) {
         {/* System Trace ID */}
         <div className="px-8 py-3 bg-slate-950/50 border-t border-slate-800 flex justify-between items-center text-[8px] font-black text-slate-600 uppercase tracking-[0.2em]">
           <span>System Trace ID: {user.id || 'N/A'}</span>
-          <span className="text-sky-900">NeuroTrace v1.0</span>
+          <span className="text-sky-900">Tremora v1.0</span>
         </div>
       </div>
     </div>

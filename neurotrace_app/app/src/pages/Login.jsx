@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Brain, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
 
 function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
-  const [email, setEmail] = useState('user@gmail.com');
-  const [password, setPassword] = useState('user123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -13,7 +13,7 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
     setError('');
 
     try {
-      const response = await fetch('http://127.0.0.1:8421/auth/login', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -48,7 +48,7 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold leading-9 tracking-tight text-white">
-          Sign In to NeuroTrace
+          Sign In to Tremora
         </h2>
         <p className="mt-2 text-center text-sm text-slate-400">
           Enter your credentials to access the analytics workspace

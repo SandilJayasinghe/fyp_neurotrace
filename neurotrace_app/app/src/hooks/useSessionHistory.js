@@ -6,7 +6,7 @@
  * sessions score above the threshold — reducing single-session false positives.
  */
 
-const STORAGE_KEY = 'neurotrace_session_history';
+const STORAGE_KEY = 'tremora_session_history';
 const MAX_SESSIONS = 3;
 const CONFIRMATION_THRESHOLD = 2; // Out of MAX_SESSIONS
 

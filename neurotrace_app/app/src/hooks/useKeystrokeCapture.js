@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 
-const API = 'http://127.0.0.1:8421';
+const API = import.meta.env.VITE_API_URL;
 
 export function useKeystrokeCapture() {
   const [state, setState] = useState('IDLE'); // IDLE|WARMUP|ACTIVE|PROCESSING|RESULTS

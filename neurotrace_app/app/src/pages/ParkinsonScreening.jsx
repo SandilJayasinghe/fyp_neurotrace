@@ -121,15 +121,17 @@ export function ParkinsonScreening({ onResult }) {
 
       const cleaned = keystrokes
         .map((k) => {
-          let key = typeof k.key === 'string' ? k.key : String(k.key);
+          let keyVal = k.key || k.keyId || '';
+          let key = typeof keyVal === 'string' ? keyVal : String(keyVal);
           let hold_time = parseFloat(k.hold_time);
-          let flight_time = k.flight_time === null || k.flight_time === undefined || k.flight_time === '' ? null : parseFloat(k.flight_time);
-          let latency = k.latency === null || k.latency === undefined || k.latency === '' ? null : parseFloat(k.latency);
-          if (key !== 'L' && key !== 'R') return null;
+          let flight_time = k.flight_time === null || k.flight_time === undefined || k.flight_time === '' || k.flight_time === 'null' ? null : parseFloat(k.flight_time);
+          let latency = k.latency === null || k.latency === undefined || k.latency === '' || k.latency === 'null' ? null : parseFloat(k.latency);
+          
           if (!(hold_time >= 0 && hold_time <= 10000)) return null;
-          if (flight_time !== null && (flight_time < -5000 || flight_time > 20000)) return null;
-          if (latency !== null && (latency < 0 || latency > 20000)) return null;
-          return { key, hold_time, flight_time, latency };
+          if (flight_time !== null && !isNaN(flight_time) && (flight_time < -5000 || flight_time > 20000)) return null;
+          if (latency !== null && !isNaN(latency) && (latency < 0 || latency > 20000)) return null;
+          
+          return { keyId: key, hold_time, flight_time: isNaN(flight_time) ? null : flight_time, latency: isNaN(latency) ? null : latency };
         })
         .filter(Boolean);
       if (cleaned.length < 150) {
@@ -192,8 +194,8 @@ export function ParkinsonScreening({ onResult }) {
 
             {state === 'IDLE' && (
               <div className="mb-2">
-                <p className="text-[10px] font-black text-sky-400 uppercase tracking-widest text-center">Free Text Typing Test</p>
-                <p className="text-[9px] text-slate-500 text-center">Please type the provided paragraph as naturally and accurately as possible. Your typing speed, rhythm, and accuracy will be analyzed for screening.</p>
+                <p className="text-[10px] font-black text-sky-400 uppercase tracking-widest text-center">Randomized Clinical Prompt</p>
+                <p className="text-[9px] text-slate-500 text-center px-2">A unique paragraph is selected for each session to ensure valid motor capture. Please type naturally as the AI analyzes your subtle timing signals.</p>
               </div>
             )}
 

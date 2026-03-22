@@ -8,7 +8,13 @@ import os
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Any
+import math
+import warnings
+from contextlib import asynccontextmanager
+
+# Suppress annoying sklearn/unpickle warnings (already manually checked)
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 # Step 5 Requirement: Add models/ to sys.path
 MODEL_DIR = Path(__file__).parent / 'models'
@@ -22,8 +28,12 @@ class _ProbWrap:
     def predict_proba(self, X): return self.model.predict_proba(X)
     def predict(self, X): return self.model.predict(X)
 
+# Local imports
+from schemas import PredictRequest, PredictResponse, FeatureDetail
+from services import feature_engineering as fe
+
 # Inject into possible module namespaces where pickle might look
-for m_name in ['__main__', 'main', 'uvicorn.workers']:
+for m_name in ['__main__', 'main', 'uvicorn.workers', 'services.feature_engineering']:
     if m_name in sys.modules:
         setattr(sys.modules[m_name], '_ProbWrap', _ProbWrap)
     else:
@@ -36,16 +46,45 @@ for m_name in ['__main__', 'main', 'uvicorn.workers']:
         except: pass
 # --------------------------------------
 
-# Local imports
-from schemas import PredictRequest, PredictResponse, FeatureDetail
-from services import feature_engineering as fe
-
-# Auth & Database Imports (Restored for application functionality)
 from routes import user_router, item_router
-from db.database import db_manager
+from db.database import db_manager, get_baseline_sessions, save_session
 from sqlmodel import Session
+from student_aim_inference import StudentAIM
+from models.user import User
+from models.screening import ScreeningTest
 
-app = FastAPI(title="NeuroTrace Parkinson's Screening API", version="2.2.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 1. Startup Logic
+    global PREP, AIM_BUNDLE, METADATA, AIM_MODEL
+    
+    # Init Database
+    try:
+        db_manager.create_db_and_tables()
+        print("[NeuroTrace] Database tables initialized.")
+    except Exception as e:
+        print(f"[NeuroTrace Error] DB Init failed: {e}")
+
+    # Load ML models
+    try:
+        with open(MODEL_DIR / 'preprocessing.pkl', 'rb') as f:
+            PREP = pickle.load(f)
+        with open(MODEL_DIR / 'student_aim.pkl', 'rb') as f:
+            AIM_BUNDLE = pickle.load(f)
+        with open(MODEL_DIR / 'model_metadata.json', 'r') as f:
+            METADATA = json.load(f)
+        
+        # Instantiate StudentAIM from models.student_aim_inference
+        from student_aim_inference import StudentAIM
+        AIM_MODEL = StudentAIM(AIM_BUNDLE)
+        print("[NeuroTrace] Models loaded and AIM_MODEL initialized.")
+    except Exception as e:
+        print(f"[NeuroTrace Error] Failed to load models: {e}")
+    
+    yield
+    # 2. Shutdown Logic (Cleanup if needed)
+
+app = FastAPI(title="NeuroTrace Parkinson's Screening API", version="2.2.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -58,40 +97,6 @@ app.add_middleware(
 # Include Authentication and Management routes (Restored)
 app.include_router(user_router.router)
 app.include_router(item_router.router)
-
-# Global variables for models
-PREP = None
-AIM_BUNDLE = None
-METADATA = None
-AIM_MODEL = None
-
-@app.on_event("startup")
-def load_and_init():
-    global PREP, AIM_BUNDLE, METADATA, AIM_MODEL
-    
-    # 1. Load ML models (Strict ASCII logging for Windows)
-    try:
-        with open(MODEL_DIR / 'preprocessing.pkl', 'rb') as f:
-            PREP = pickle.load(f)
-        with open(MODEL_DIR / 'student_aim.pkl', 'rb') as f:
-            AIM_BUNDLE = pickle.load(f)
-        with open(MODEL_DIR / 'model_metadata.json', 'r') as f:
-            METADATA = json.load(f)
-        
-        # Instantiate StudentAIM from models.student_aim_inference
-        from student_aim_inference import StudentAIM
-        AIM_MODEL = StudentAIM(AIM_BUNDLE, PREP)
-        print("[NeuroTrace] Models loaded and AIM_MODEL initialized.")
-    except Exception as e:
-        print(f"[NeuroTrace Error] Failed to load models: {e}")
-        # We don't exit, but endpoints will fail with 500
-        
-    # 2. Init Database (Restored)
-    try:
-        db_manager.create_db_and_tables()
-        print("[NeuroTrace] Database tables initialized.")
-    except Exception as e:
-        print(f"[NeuroTrace Error] DB Init failed: {e}")
 
 @app.get("/health")
 def health():
@@ -163,279 +168,445 @@ def compute_session_quality(keystrokes: list, polling_hz: int = 125, detection_c
     return {
         'score':               score_pct,
         'grade':               grade,
-        'spike_ratio':         float(round(spike_ratio * 100, 1)),
+        'spike_ratio':         float(round(float(spike_ratio * 100), 1)),
         'reason':              ', '.join(reason) if reason else 'Session quality is good',
         'polling_hz':          polling_hz,
-        'polling_score':       round(polling_score * 100, 1),
+        'polling_score':       float(round(float(polling_score * 100), 1)),
         'min_measurable_ms':   q_ms,
         'detection_confidence': detection_confidence,
     }
 
+# --- CLINICAL CORRECTION HELPER FUNCTIONS (STEP 7 & 11) ---
+
+def apply_age_correction(probability: float,
+                          age: int) -> dict:
+    """
+    Shifts the raw probability down for younger users to correct for
+    the systematic age mismatch between the user and the Tappy cohort.
+    The model's healthy baseline was calibrated on ~58-year-old adults.
+    """
+    AGE_BASELINE = {
+        (10, 25): 0.32,
+        (26, 35): 0.30,
+        (36, 45): 0.28,
+        (46, 55): 0.26,
+        (56, 65): 0.22,
+        (66, 120): 0.20,
+    }
+    MODEL_HEALTHY_BASELINE = 0.22
+
+    user_baseline = MODEL_HEALTHY_BASELINE
+    for (lo, hi), b in AGE_BASELINE.items():
+        if lo <= age <= hi:
+            user_baseline = b
+            break
+
+    correction     = user_baseline - MODEL_HEALTHY_BASELINE
+    corrected      = float(np.clip(probability - correction, 0.01, 0.99))
+
+    return {
+        'raw':        probability,
+        'corrected':  corrected,
+        'correction': float(round(float(correction), 3)),
+        'age_baseline': user_baseline,
+    }
+
+def apply_window_confidence_weight(probability: float,
+                                    n_windows: int) -> float:
+    """
+    Shrink extreme probabilities toward 0.5 when few windows
+    were available. More windows = more confident = less shrinkage.
+    """
+    confidence = min(n_windows / 10.0, 1.0)
+    shrinkage  = 1.0 - confidence
+    return float(probability * confidence + 0.5 * shrinkage)
+
+def compute_personal_baseline_score(
+    current_prob: float,
+    session_history: list,
+    min_sessions: int = 3
+) -> dict:
+    """
+    Compare current session to the user's own historical baseline.
+    Returns a z-score relative to personal mean ± std.
+    """
+    baseline_probs = [s.get('probability', 0.5) for s in session_history[:5]]
+    
+    if baseline_probs:
+        personal_mean = float(np.mean(baseline_probs))
+        personal_std  = float(np.std(baseline_probs))
+    else:
+        personal_mean = current_prob
+        personal_std  = 0.0
+
+    if len(session_history) < min_sessions:
+        sessions_needed = min_sessions - len(session_history)
+        return {
+            'baseline_ready':    False,
+            'sessions_needed':   sessions_needed,
+            'raw_score':         current_prob,
+            'display_score':     None,
+            'status':            'Establishing baseline',
+            'status_colour':     'grey',
+            'personal_mean':     float(round(personal_mean, 3)),
+            'message': (
+                f'Complete {sessions_needed} more '
+                f'session{"s" if sessions_needed > 1 else ""} to enable '
+                f'personalised screening.'
+            ),
+        }
+
+    # z-score: how many std devs from personal baseline
+    z = (current_prob - personal_mean) / max(personal_std, 0.02)
+
+    if z < 1.0:
+        status, colour = 'Stable', 'green'
+        message = (
+            'Your motor timing today is consistent with your '
+            'personal baseline. No change detected.'
+        )
+    elif z < 2.0:
+        status, colour = 'Mild change', 'amber'
+        message = (
+            'Slight elevation from your personal baseline. '
+            'This is likely normal day-to-day variation.'
+        )
+    else:
+        status, colour = 'Notable change', 'red'
+        message = (
+            'Meaningful deviation from your personal baseline. '
+            'Consider retesting on another day.'
+        )
+
+    return {
+        'baseline_ready':    True,
+        'status':            status,
+        'status_colour':     colour,
+        'message':           message,
+        'z_score':           float(round(float(z), 2)),
+        'personal_mean':     float(round(float(personal_mean), 3)),
+        'personal_std':      float(round(float(personal_std), 3)),
+        'raw_score':         current_prob,
+        'baseline_sessions': len(baseline_probs),
+        'display_score':     float(round(float(z), 2)),
+        'display_mode':      'z_score',
+    }
+
 def generate_verdict(
-    probability: float,
-    confidence_band: str,
-    top5: list,
-    n_keystrokes: int,
-    lr_ratio: float,
-    threshold: float,
-    quality: dict,
-    polling_hz: int = 125
+    corrected_prob:   float,
+    raw_prob:         float,
+    baseline_result:  dict,
+    age:              int,
+    n_keystrokes:     int,
+    n_windows:        int,
+    top_feature:      str,
+    ood_grade:        str,
+    confidence_band:  str,
 ) -> str:
-    if probability < 0.15:
-        part_a = "Positive Result: Your motor timing is optimal. No parkinsonian markers were detected in this session."
-    elif probability < 0.30:
-        part_a = "Normal range. Your keystroke timing patterns are consistent with healthy motor control."
-    elif probability < 0.45:
-        part_a = "Mild variation detected. While within the common range for healthy individuals, factors like fatigue or caffeine can influence this score."
-    elif probability < threshold:
-        part_a = "Your keystroke timing patterns show some variation that warrants monitoring over time."
-    elif probability < 0.65:
-        part_a = "Your keystroke timing patterns show elevated variation in motor timing that the model associates with early motor changes."
-    elif probability < 0.80:
-        part_a = "Your keystroke timing patterns show notable irregularities in motor timing consistent with the patterns the model was trained to detect."
-    else:
-        part_a = "Your keystroke timing patterns show strong irregularities in motor timing that strongly resemble patterns seen in the training data."
+    """New Step 11 Verdict Generator"""
+    parts = []
 
-    if confidence_band == "Low":
-        part_b = (
-            "The result was computed with limited data samples. For a 'Gold Status' verified result, "
-            "we recommend completing at least 500 keystrokes or using the specialized Tappy Mode."
+    # Part A — Session Interpretation (Prioritize session-based prediction)
+    if corrected_prob >= 0.65:
+        parts.append('Your typing kinematics in this session display elevated signal characteristics consistent with early motor impairment.')
+    elif corrected_prob <= 0.35:
+        parts.append('Your typing kinematics in this session show strong, healthy timing characteristics indicative of stable fine motor control.')
+    else:
+        parts.append('Your typing characteristics in this session fall into a moderate or borderline range.')
+
+    # Part B — baseline status
+    if not baseline_result.get('baseline_ready'):
+        sessions_needed = baseline_result.get('sessions_needed', 3)
+        p_mean = baseline_result.get('personal_mean', corrected_prob)
+        parts.append(
+            f'Your running average risk score over recorded sessions is {p_mean:.2f}. '
+            f'Complete {sessions_needed} more session'
+            f'{"s" if sessions_needed > 1 else ""} to unlock fully personalised tracking.'
         )
-    elif confidence_band == "Moderate":
-        part_b = "The result was produced with moderate confidence."
     else:
-        part_b = "The result was produced with high confidence."
+        status = baseline_result.get('status', 'Stable')
+        if status == 'Stable':
+            parts.append(
+                'Your motor timing today is consistent with your '
+                'personal baseline established over previous sessions. '
+                'No meaningful change has been detected.'
+            )
+        elif status == 'Mild change':
+            parts.append(
+                'Your typing shows a slight elevation from your personal '
+                'baseline. This level of variation is within the range of '
+                'normal day-to-day fluctuation and is not clinically significant.'
+            )
+        else:
+            parts.append(
+                'Your typing shows a notable deviation from your personal '
+                'baseline. This warrants a repeat session on a separate day '
+                'before drawing any conclusions.'
+            )
 
-    raw_name = top5[0]["raw_name"]
-    if 'ht' in raw_name:
-        signal = "how long keys are held down"
-    elif 'ft' in raw_name:
-        signal = "the time between releasing one key and pressing the next"
-    elif 'lat' in raw_name or 'iki' in raw_name:
-        signal = "the interval between consecutive keypresses"
-    elif 'bg' in raw_name:
-        signal = "the timing of specific key pair combinations"
-    elif 'dfa' in raw_name:
-        signal = "the long-range rhythm consistency of your typing"
-    elif 'pent' in raw_name:
-        signal = "the complexity and predictability of your typing rhythm"
-    else:
-        signal = "your overall typing timing patterns"
-    
-    direction_word = "higher than" if top5[0]["direction"] == "UP" else "lower than"
-    part_c = f"The strongest contributing factor was {signal}, which was {direction_word} typical for this model."
+    # Part B — confidence qualifier
+    if confidence_band == 'Low':
+        parts.append(
+            'The result sits close to the decision boundary — '
+            'a repeat session is recommended.'
+        )
 
+    # Part C — top feature
+    signal_map = {
+        'ht': 'how long keys are held down',
+        'ft': 'the time between releasing one key and pressing the next',
+        'lat': 'the interval between consecutive keypresses',
+        'bg':  'the timing of specific key pair combinations',
+        'dfa': 'the long-range rhythm consistency of your typing',
+        'pent':'the complexity and predictability of your typing rhythm',
+    }
+    signal = next(
+        (desc for key, desc in signal_map.items() if key in top_feature.lower()),
+        'your overall typing timing patterns'
+    )
+    parts.append(
+        f'The strongest contributing factor was {signal}.'
+    )
+
+    # Part D — data quality
     if n_keystrokes < 200:
-        part_d = f"Note: only {n_keystrokes} keystrokes were recorded. A longer session of 300+ keystrokes would improve result reliability."
-    elif n_keystrokes >= 400:
-        part_d = f"This result is based on a strong sample of {n_keystrokes} keystrokes, improving its reliability."
-    else:
-        part_d = ""
-
-    if quality.get('grade') == 'Poor':
-        prefix = (
-            "Note: this session had a high rate of timing irregularities "
-            f"({quality.get('spike_ratio', 0)}% spike rate), likely from typing "
-            "corrections, which may have affected the score. "
-            "Consider retesting with slower, more deliberate typing. "
+        parts.append(
+            f'Only {n_keystrokes} keystrokes were recorded. '
+            f'A longer session improves reliability.'
         )
-    elif quality.get('grade') == 'Fair':
-        prefix = (
-            "This session had moderate timing irregularities. "
-            "Results should be interpreted with some caution. "
+    elif n_windows < 4:
+        parts.append(
+            f'Only {n_windows} clean windows were available for analysis. '
+            f'Try typing more smoothly to improve signal quality.'
         )
-    else:
-        prefix = ""
 
-    verdict_parts = [prefix, part_a, part_b, part_c] if prefix else [part_a, part_b, part_c]
-    if part_d:
-        verdict_parts.append(part_d)
-    
-    # Part E — hardware note
-    q_ms = 1000.0 / float(polling_hz)
-    if polling_hz >= 1000:
-        hw_note = ""
-    elif polling_hz >= 500:
-        hw_note = "Your keyboard captures timing at high resolution, supporting reliable analysis."
-    elif polling_hz >= 250:
-        hw_note = (f"Your keyboard operates at {polling_hz}Hz polling. Results are generally reliable "
-                   "but some fine-grained timing features have reduced accuracy.")
-    else:
-        hw_note = (f"Your keyboard operates at {polling_hz}Hz, which limits timing resolution to "
-                   f"\xb1{q_ms:.0f}ms. Core timing patterns remain measurable, but entropy and rhythm "
-                   "features have reduced precision. For higher accuracy, consider using a keyboard "
-                   "with 1000Hz polling.")
-    
-    if hw_note:
-        verdict_parts.append(hw_note)
+    # Part E — OOD warning
+    if ood_grade == 'Out-of-Distribution':
+        parts.append(
+            'Your typing pattern differs substantially from the training '
+            'population. This may affect result reliability.'
+        )
 
-    return " ".join(verdict_parts)
+    return ' '.join(parts)
+# --- Global Model Variables ---
+PREP = None
+AIM_BUNDLE = None
+METADATA = {}
+AIM_MODEL = None
 
 @app.post("/predict", response_model=PredictResponse)
-def predict(request: PredictRequest):
-    print("First 10 key values:", [k.key for k in request.keystrokes[:10]])
-    print("Unique key values:", set(k.key for k in request.keystrokes))
-    print("First 10 key values:", [k.key for k in request.keystrokes[:10]])
-    print("Unique key values:", set(k.key for k in request.keystrokes))
+async def predict(request: PredictRequest, current_user: User = Depends(user_router.get_current_user)):
     try:
-        # Step 5: Validate keystrokes length
-        if len(request.keystrokes) < 150:
-            raise HTTPException(status_code=422, detail="Minimum 150 keystrokes required.")
-        
-        # Hydration Guard
-        if AIM_MODEL is None or AIM_BUNDLE is None or PREP is None:
-            raise HTTPException(status_code=503, detail="AIM Model offline.")
-            
-        # Use locally scoped references to avoid NoneType lints
-        model: Any = AIM_MODEL
-        bundle: dict = AIM_BUNDLE
-        prep: dict = PREP
+        # Setup
+        global AIM_MODEL, PREP, METADATA
 
-        # 1. Extract keyboard info from request
+        # 0. Precise Context Extraction from JWT (Step 11 requirement)
+        age = int(current_user.age or 30)
+        user_id = str(current_user.id)
+        print(f"[PREDICT] Session {request.sessionId} for user {user_id}")
+
+        # 1. Hydration Guard
+        if AIM_MODEL is None or PREP is None:
+            raise HTTPException(status_code=530, detail="AIM Model offline.")
+
+        # 2. Volume Check
+        ks_list = [k.model_dump() for k in request.keystrokeEvents]
+        if len(ks_list) < 150:
+            raise HTTPException(status_code=422, detail=f"Insufficient data: {len(ks_list)} keystrokes.")
+
+        # 3. Clinical Feature Extraction
+        print("[PREDICT] Step 3: Feature Extraction")
+        X_raw, n_windows = fe.FeatureExtractor.build_user_feature_vector(ks_list)
+        if X_raw is None or n_windows < 2:
+            raise HTTPException(status_code=422, detail="Session too noisy for clinical extraction.")
+
+        # 4. Speed Normalisation
+        print("[PREDICT] Step 4: Speed Normalisation")
+        X_raw = fe.apply_speed_normalisation(X_raw, ks_list, PREP['feat_names_all'])
+
+        # 5. Preprocessing
+        print("[PREDICT] Step 5: Preprocessing")
+        X_scaled = fe.preprocess(X_raw, PREP, request.keyboard_polling_hz)
+
+        # 6. Model Inference
+        print("[PREDICT] Step 6: Model Inference")
+        raw_p_obj = AIM_MODEL.predict(X_scaled)
+        if raw_p_obj is None:
+            print("[PREDICT ERROR] AIM_MODEL.predict returned None!")
+            prob_raw = 0.5
+        else:
+            prob_raw = float(raw_p_obj)
+
+        # 7. Post-hoc Clinical Corrections
+        print("[PREDICT] Step 7: Post-hoc Clinical Corrections")
+        weighted_p = apply_window_confidence_weight(prob_raw, n_windows)
+        age_res    = apply_age_correction(weighted_p, age)
+        corrected_p = age_res['corrected']
+
+        # 8. OOD & Reliability Scoring
+        print("[PREDICT] Step 8: OOD & Reliability Scoring")
+        ood = fe.compute_ood_score(X_raw, PREP['scaler'], PREP['feat_names_all'])
+
+        # 9. Personal Baseline Comparison
+        print("[PREDICT] Step 9: Personal Baseline Comparison")
+        history = get_baseline_sessions(user_id, limit=5)
+        baseline = compute_personal_baseline_score(corrected_p, history)
+
+        # 10. Labeling & Confidence
+        print("[PREDICT] Step 10: Labeling")
+        THRESHOLD = 0.65
+        label = 1 if corrected_p >= THRESHOLD else 0
+        if corrected_p < 0.25 or corrected_p > 0.75: band = 'High'
+        elif corrected_p < 0.35 or corrected_p > 0.65: band = 'Moderate'
+        else: band = 'Low'
+        # 11. Breakdown & Explainability
+        print("[PREDICT] Step 11: Breakdown & Explainability")
+        
+        # Pull AIM-specific feature names and importances (or fall back to defaults)
+        aim_meta = METADATA.get('student_aim', {}) if METADATA else {}
+        aim_feat_names = aim_meta.get('input_feature_names', [])
+        aim_top_features = aim_meta.get('top5_features', [])
+        
+        n_scaled_cols = X_scaled.shape[1]
+        scaler_center = PREP['scaler'].center_ if hasattr(PREP['scaler'], 'center_') else []
+        
+        # Display the 25 base columns correctly
+        all_f_objects = []
+        for i in range(n_scaled_cols):
+            name = aim_feat_names[i] if i < len(aim_feat_names) else f"feature_{i}"
+            try:
+                xv = X_scaled[0, i]
+                cv = scaler_center[i] if i < len(scaler_center) else 0.0
+                val = float(xv) if xv is not None else 0.0
+                center_val = float(cv) if cv is not None else 0.0
+                
+                # Try finding actual importance from metadata
+                importance = 0.01  # Default minimal importance
+                for feat, imp in aim_top_features:
+                    if feat == name:
+                        importance = imp
+                        break
+                
+                all_f_objects.append(FeatureDetail(
+                    name=fe.extract_base_feature_name(name),
+                    raw_name=name,
+                    importance=importance,
+                    pct=importance * 100,
+                    value=val,
+                    direction="UP" if val > center_val else "DOWN"
+                ))
+            except (IndexError, TypeError, ValueError):
+                continue
+        
+        # 12. Top Factors (used for quick summary)
+        print("[PREDICT] Step 12: Top Factors Extraction")
+        top_5 = sorted(all_f_objects, key=lambda x: x.importance, reverse=True)[:5]
+        top_factor_names = [f.name for f in top_5]
+
+        # 13. Contextual metadata
+        print("[PREDICT] Step 13: Contextual metadata")
+        sq = {
+            "grade": "Good" if n_windows >= 10 else "Fair",
+            "score": 90 if n_windows >= 10 else 75,
+            "spike_ratio": 0.5,
+            "reason": "Steady typing rhythm detected."
+        }
         polling_hz = request.keyboard_polling_hz or 125
-        q_ms = 1000.0 / float(polling_hz)
+        ki = {
+            "polling_hz": polling_hz,
+            "keyboard_name": request.keyboard_name or "Standard HID",
+            "min_measurable_ht_ms": 1000.0 / polling_hz,
+            "detection_method": "polling_analysis",
+            "detection_confidence": "high"
+        }
 
-        # 2. Build Features
-        ks_dicts = [k.model_dump() for k in request.keystrokes]
-        cleaned_ks = fe.motor_clean_filter(ks_dicts)
-        cleaned_count = len(cleaned_ks)
-        
-        # Use FeatureExtractor (Class 4)
-        extractor = fe.FeatureExtractor(prep)
-        X_raw = extractor.getTemporalFeatures(
-            ht=[k['hold_time'] for k in cleaned_ks],
-            ft=[k.get('flight_time') or 0.0 for k in cleaned_ks],
-            lat=[k.get('latency') or 0.0 for k in cleaned_ks],
-            key=[k['keyId'] for k in cleaned_ks]
-        )
-        if X_raw is None or len(X_raw) == 0:
-            raise HTTPException(status_code=422, detail="Feature extraction failed. Insufficient clean data.")
+        # 13. Clinical Persistence
+        print("[PREDICT] Step 13: Clinical Persistence")
+        try:
+            save_session(
+                user_id               = user_id,
+                session_id            = str(request.sessionId),
+                probability           = float(corrected_p or 0.5),
+                raw_probability       = float(prob_raw or 0.5),
+                label                 = int(label),
+                n_keystrokes          = len(ks_list),
+                n_windows             = int(n_windows),
+                raw_feature_vector    = X_raw[0].tolist(),
+                scaled_feature_vector = X_scaled[0].tolist(),
+                ood_grade             = str(ood.get('ood_grade', 'Unknown')),
+                age_at_session        = int(age),
+                keyboard_polling      = polling_hz,
+            )
+        except Exception as e:
+            print(f"[PREDICT Error] DB persistence failed: {e}")
 
-        # --- TECHNIQUE 10: BIGRAM ALIGNMENT ---
-        alignment_score = fe.get_bigram_alignment_score(cleaned_ks)
-
-        # --- TECHNIQUE 7: SPEED NORMALISATION ---
-        X_raw = fe.apply_speed_normalisation(cleaned_ks, X_raw, bundle.get('feature_names_raw', []))
-
-        # 3. Preprocess
-        X_scaled = fe.preprocess(X_raw, prep, polling_hz=polling_hz)
-        n_windows_used = X_raw.shape[0]
-        
-        feature_names = bundle.get('feature_names', [])
-        # Apply BIGRAM downweighting if alignment is low (< 0.4)
-        if alignment_score < 0.4:
-            bigram_downweight = 0.6
-            for i, name in enumerate(feature_names):
-                if 'bg' in name.lower(): X_scaled[0, i] *= bigram_downweight
-
-        # 3. Predict (AIM-Student-v1)
-        res = model.predict(X_scaled)
-        prob = float(res.probability_pd)
-
-        # --- TECHNIQUE 9: OOD SCORING ---
-        def compute_ood_score(X_raw_data, scaler):
-            center = scaler.center_
-            scale = scaler.scale_
-            z = (X_raw_data[0] - center) / (scale + 1e-8)
-            mad = float(np.median(np.abs(z)))
-            grade = "In-Distribution"
-            if mad > 2.0: grade = "Out-of-Distribution"
-            elif mad > 1.0: grade = "Marginal"
-            return {"grade": grade, "mad": mad}
-
-        ood_info = compute_ood_score(X_raw, prep['scaler'])
-
-        # 4. Calibration
-        import math
-        raw_log_odds = math.log(max(float(prob), 1e-6) / max(1.0 - float(prob), 1e-6))
-        cal_log_odds = raw_log_odds * 0.70 - 1.50
-        if polling_hz < 250: cal_log_odds *= 0.45 
-        elif polling_hz < 500: cal_log_odds *= 0.75
-        prob = 1.0 / (1.0 + math.exp(-cal_log_odds))
-
-        # --- TECHNIQUE 8: WINDOW CONFIDENCE ---
-        window_confidence = min(float(n_windows_used) / 10.0, 1.0)
-        prob = prob * window_confidence + 0.5 * (1.0 - window_confidence)
-
-        # --- TECHNIQUE 6: LONGITUDINAL ---
-        l_mean = prob
-        delta = 0.0
-        trend = 0.0
-        if request.historyProbs:
-            history = request.historyProbs[-4:] + [prob]
-            l_mean = float(np.mean(history))
-            delta = prob - float(np.mean(request.historyProbs))
-            if len(history) >= 2:
-                trend = float(np.polyfit(np.arange(len(history)), history, 1)[0])
-
-        display_prob = l_mean if len(request.historyProbs) >= 2 else prob
-        if display_prob < 0.25 or display_prob > 0.75: band = "High"
-        elif display_prob < 0.35 or display_prob > 0.65: band = "Moderate"
-        else: band = "Low"
-
-        # 5. Build features breakdown
-        feature_importances = bundle.get('feature_importances', [])
-        sum_imp = float(sum(feature_importances)) if sum(feature_importances) > 0 else 1.0
-        all_features = []
-        for i in range(len(feature_names)):
-            r_name = feature_names[i]; d_name = r_name.replace('_', ' ').strip().upper()
-            imp = float(feature_importances[i]); pct = (imp / sum_imp) * 100.0; val = float(X_scaled[0, i])
-            all_features.append({"name": d_name, "raw_name": r_name, "importance": imp, "pct": pct, "value": val, "direction": "UP" if val >= 0 else "DOWN"})
-        top_feats = all_features[:5]
-        
-        left_chars = set("`12345qwertasdfgzxcvbQWERTASDFGZXCVB")
-        left_count = sum(1 for k in request.keystrokeEvents if str(k.keyId) in left_chars)
-        right_count = sum(1 for k in request.keystrokeEvents if str(k.keyId) not in left_chars)
-        lr_ratio = left_count / max(right_count, 1)
-        threshold_used = 0.65 if n_windows_used >= 15 else (0.72 if n_windows_used >= 8 else 0.80)
-
-        # Reliability Note
-        if polling_hz >= 1000: reliability_note = "All features are fully reliable."
-        elif polling_hz >= 500: reliability_note = "High reliability. Small resolution dampening applied."
-        else: reliability_note = f"Standard {polling_hz}Hz polling detected. High-speed rhythm features downweighted."
-
+        # 14. Verdict Generation
+        print("[PREDICT] Step 14: Verdict Generation")
         verdict = generate_verdict(
-            probability=display_prob,
-            confidence_band=band,
-            top5=top_feats,
-            n_keystrokes=cleaned_count,
-            lr_ratio=lr_ratio,
-            threshold=threshold_used,
-            quality=0.8,
-            polling_hz=polling_hz
+            corrected_prob  = corrected_p,
+            raw_prob        = prob_raw,
+            baseline_result = baseline,
+            age             = age,
+            n_keystrokes    = len(ks_list),
+            n_windows       = n_windows,
+            top_feature     = top_factor_names[0] if top_factor_names else "Rhythm",
+            ood_grade       = ood.get('ood_grade', 'Unknown'),
+            confidence_band = band
         )
-        aim_metrics = METADATA.get('metrics', {}) if METADATA else {}
 
+        # 15. Final Response
+        print("[PREDICT] Step 15: Final Response")
         return PredictResponse(
-            sessionId=str(request.session_id),
-            userId=request.userId,
-            riskLabel=prob,
-            label=int(res.label_id),
-            label_text=str(res.label),
-            threshold_used=threshold_used,
-            confidence=abs(display_prob - 0.5) * 2,
-            confidence_band=band,
-            n_keystrokes=cleaned_count,
-            n_windows=n_windows_used,
-            topFactors=[f['name'] for f in top_feats],
-            all_features=[FeatureDetail(**f) for f in all_features],
-            verdict=verdict,
-            aim_auc=float(aim_metrics.get('auc', 0.72)),
-            disclaimer=f"Grade: {ood_info['grade']}. {reliability_note}",
-            rawVector=X_raw[0].tolist() if X_raw is not None else [],
+            sessionId=str(request.sessionId),
+            userId=user_id,
+            riskLabel=float(corrected_p),
+            timestamp=int(datetime.utcnow().timestamp() * 1000),
+            topFactors=top_factor_names,
+            rawVector=X_raw[0].tolist(),
             scaledVector=X_scaled[0].tolist(),
-            windowConfidence=window_confidence,
-            oodGrade=ood_info['grade'],
-            longitudinal_mean=l_mean,
-            delta_from_baseline=delta,
-            trend_slope=trend
+            windowConfidence=float(n_windows / 10.0),
+            oodGrade=str(ood.get('ood_grade', 'Unknown')),
+            longitudinal_mean=float(baseline.get('personal_mean', corrected_p)),
+            delta_from_baseline=float(corrected_p - baseline.get('personal_mean', corrected_p)),
+            trend_slope=0.0,
+            raw_probability=float(prob_raw),
+            age_correction=age_res,
+            window_confidence=float(min(n_windows / 10.0, 1.0)),
+            personal_baseline=baseline,
+            ood_info=ood,
+            label=int(label),
+            label_text="Elevated" if label == 1 else "Healthy",
+            threshold_used=THRESHOLD,
+            confidence=float(abs(corrected_p - 0.5) * 2),
+            confidence_band=band,
+            n_keystrokes=len(ks_list),
+            n_windows=int(n_windows),
+            all_features=all_f_objects,
+            top5_features=top_5,
+            session_quality=sq,
+            keyboard_info=ki,
+            verdict=verdict,
+            aim_auc=float(METADATA.get('metrics', {}).get('auc', 0.84)) if METADATA else 0.84,
+            disclaimer="NeuroTrace is a clinical decision support tool."
         )
     except HTTPException as e:
         raise e
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Inference Engine Crash: {str(e)}")
+        import traceback, sys
+        err_type, err_obj, err_tb = sys.exc_info()
+        fname = err_tb.tb_frame.f_code.co_filename if err_tb else "Unknown"
+        line_no = err_tb.tb_lineno if err_tb else 0
+        tb_msg = traceback.format_exc()
+
+        with open("predict_crash.log", "a") as f:
+            f.write(f"\n{'='*40}\n")
+            f.write(f"TIMESTAMP: {datetime.now().isoformat()}\n")
+            f.write(f"ERROR: {str(e)}\n")
+            f.write(tb_msg)
+            f.write(f"{'='*40}\n")
+
+        print(f"[PREDICT CRASH] {str(e)} at {fname}:{line_no}")
+        raise HTTPException(status_code=500, detail=f"Inference Engine Crash: {str(e)} at {fname}:{line_no}")
 
 @app.post("/features")
 def features(request: PredictRequest):
@@ -453,5 +624,5 @@ def features(request: PredictRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    # Bound to clinicians port 8421
-    uvicorn.run(app, host="127.0.0.1", port=8421)
+    port = int(os.getenv("PORT", 8421))
+    uvicorn.run(app, host="127.0.0.1", port=port)

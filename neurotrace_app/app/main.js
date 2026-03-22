@@ -42,7 +42,8 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
     },
-    title: 'NeuroTrace | Motor Assessment',
+    icon: path.join(__dirname, 'public', 'icon.png'),
+    title: 'Tremora | Motor Assessment',
     backgroundColor: '#ffffff'
   });
 
@@ -98,14 +99,14 @@ function registerHandlers() {
     try {
       const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
         title: 'Save Analysis Report',
-        defaultPath: `NeuroTrace_Report_${new Date().toISOString().slice(0,10)}.pdf`,
+        defaultPath: `Tremora_Report_${new Date().toISOString().slice(0,10)}.pdf`,
         filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
       });
       if (canceled || !filePath) return { success: false, reason: 'cancelled' };
 
       // Write HTML to a temp file — avoids data: URL length limits for large reports
       const os = await import('os');
-      const tmpHtml = path.join(os.default.tmpdir(), `neurotrace_report_${Date.now()}.html`);
+      const tmpHtml = path.join(os.default.tmpdir(), `tremora_report_${Date.now()}.html`);
       fs.writeFileSync(tmpHtml, htmlContent, 'utf-8');
 
       const printWin = new BrowserWindow({

@@ -4,9 +4,9 @@ from datetime import datetime
 
 # Class 1 — KeystrokeEvent
 class KeystrokeEvent(BaseModel):
-    timeStamp: int = Field(..., description="Timestamp in ms since epoch")
+    timeStamp: Optional[int] = Field(None, description="Timestamp in ms since epoch")
     keyId: str = Field(..., description="Raw key ID / Character")
-    type: str = Field(..., description="Hand classification (L/R/Unknown)")
+    type: str = Field(default="Unknown", description="Hand classification (L/R/Unknown)")
     username: Optional[str] = None
     password: Optional[str] = None
     # Biometric attributes from legacy implementation (required for functional parity)
@@ -25,7 +25,7 @@ class Session(BaseModel):
     # Contextual metadata
     userId: Optional[str] = None
     historyProbs: List[float] = Field(default_factory=list, description="Last N risk probabilities for longitudinal analysis")
-    keyboard_polling_hz: int = 125
+    keyboard_polling_hz: Optional[int] = 125
     keyboard_name: str = "Unknown"
 
     def calculateDuration(self) -> int:
@@ -63,6 +63,13 @@ class DiagnosticReport(BaseModel):
     delta_from_baseline: Optional[float] = None
     trend_slope: Optional[float] = None
     
+    # New correction fields for Step 9
+    raw_probability: float = 0.0
+    age_correction: dict = Field(default_factory=dict)
+    window_confidence: float = 0.0
+    personal_baseline: dict = Field(default_factory=dict)
+    ood_info: dict = Field(default_factory=dict)
+
     # Extended attributes for frontend rich UI compatibility
     label: int
     label_text: str
@@ -72,6 +79,9 @@ class DiagnosticReport(BaseModel):
     n_keystrokes: int
     n_windows: int
     all_features: List[FeatureDetail]
+    top5_features: Optional[List[FeatureDetail]] = None
+    session_quality: Optional[dict] = None
+    keyboard_info: Optional[dict] = None
     verdict: str
     aim_auc: float
     disclaimer: str

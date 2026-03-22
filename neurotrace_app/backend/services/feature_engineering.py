@@ -4,11 +4,25 @@ from typing import List, Optional, Dict, Any
 
 # --- Notebook Verbatim Functions (Step 4 Requirement) ---
 
+class _ProbWrap:
+    """Compatibility shim for scikit-learn probability wrappers."""
+    def __init__(self, *args, **kwargs): pass
+    def __setstate__(self, state): self.__dict__.update(state)
+    def __getstate__(self): return self.__dict__
+
 def _stats(x):
-    m = x.mean(); s = x.std()
+    m = np.mean(x); s = np.std(x)
     if s < 1e-10: return m, 0., 0., 0., 0.
     z = (x - m) / s
-    return m, s, float((z**3).mean()), float((z**4).mean() - 3.), s / (m + 1e-8)
+    kurt = float((z**4).mean() - 3.)
+    return m, s, float((z**3).mean()), kurt, s / (m + 1e-8)
+
+def _shannon_entropy(x, bins=10):
+    if len(x) < 2: return 0.0
+    counts, _ = np.histogram(x, bins=bins)
+    p = counts / counts.sum()
+    p = p[p > 0]
+    return -np.sum(p * np.log2(p))
 
 def _dfa_alpha(x):
     n = len(x)
@@ -68,74 +82,84 @@ def _bigram_features(keys, lat):
     return feats
 
 def extract_features(ht, ft, lat, key=None):
-    ht = np.ascontiguousarray(ht, dtype=np.float64); ft = np.ascontiguousarray(ft, dtype=np.float64); lat = np.ascontiguousarray(lat, dtype=np.float64)
-    hm, hs, hsk, hku, hcv = _stats(ht)
-    ht_f = [hm, float(np.median(ht)), hs, float(np.percentile(ht, 75) - np.percentile(ht, 25)), float(ht.max()), float(np.percentile(ht, 10)), float(np.percentile(ht, 90)), hsk, hku, hcv]
-    fm, fs, fsk, _, fcv = _stats(ft)
-    ft_f = [fm, float(np.median(ft)), fs, float(np.percentile(ft, 75) - np.percentile(ft, 25)), float(ft.max()), float(np.percentile(ft, 90)), fsk, fcv]
-    lm, ls, lsk, _, lcv = _stats(lat)
-    lat_f = [lm, float(np.median(lat)), ls, float(np.percentile(lat, 90)), float(lat.max()), float(np.percentile(lat, 10)), lsk, lcv]
+    ht = np.array(ht); ft = np.array(ft); lat = np.array(lat)
     
+    # 1-10: HT Stats
+    hm, hs, hsk, hku, hcv = _stats(ht)
+    ht_f = [hm, float(np.median(ht)), hs, float(np.percentile(ht, 75) - np.percentile(ht, 25)), 
+            float(ht.max()), float(np.percentile(ht, 10)), float(np.percentile(ht, 90)), hsk, hku, hcv]
+    
+    # 11-18: FT Stats
+    fm, fs, fsk, fku, fcv = _stats(ft)
+    ft_f = [fm, float(np.median(ft)), fs, float(np.percentile(ft, 75) - np.percentile(ft, 25)), 
+            float(ft.max()), float(np.percentile(ft, 90)), fsk, fcv]
+    
+    # 19-26: Latency Stats
+    lm, ls, lsk, lku, lcv = _stats(lat)
+    lat_f = [lm, float(np.median(lat)), ls, float(np.percentile(lat, 90)), float(lat.max()), 
+             float(np.percentile(lat, 10)), lsk, lcv]
+    
+    # 27-30: Hand Transitions
     if key is not None:
-        _LEFT_CHARS = set('`12345qwertasdfgzxcvbQWERTASDFGZXCVB')
-        _RIGHT_CHARS = set("67890-=yuiophjklnmYUIOPHJKLNM[];'\\,./")
-        def _to_h(k):
-            if k == 'L': return 0
-            if k == 'R': return 1
-            ks = str(k)[:1] if k else ''
-            if ks in _LEFT_CHARS: return 0
-            if ks in _RIGHT_CHARS: return 1
-            return 2
-        h = np.array([_to_h(k) for k in key], dtype=np.int8)
-        med_l = float(np.median(lat))
-        hand_f = [float(np.median(lat[1:][(h[:-1] == a) & (h[1:] == b)])) if ((h[:-1] == a) & (h[1:] == b)).any() else med_l for a, b in [(0, 0), (0, 1), (1, 0), (1, 1)]]
-    else: hand_f = [float(np.median(lat))] * 4
+        _L = set('`12345qwertasdfgzxcvbQWERTASDFGZXCVB')
+        _R = set("67890-=yuiophjklnmYUIOPHJKLNM[];'\\,./")
+        h = np.array([0 if str(k)[:1] in _L else (1 if str(k)[:1] in _R else 2) for k in key])
+        hand_f = [float(np.median(lat[1:][(h[:-1]==a)&(h[1:]==b)])) if ((h[:-1]==a)&(h[1:]==b)).any() else lm 
+                  for a,b in [(0,0), (0,1), (1,0), (1,1)]]
+    else: hand_f = [lm] * 4
 
-    tpow = tfreq = 0.
+    # 31-36: Tremor, Slope, Burst, Rhythm, Autocorr
+    tpow = tfreq = 0.0
     if len(ht) >= 32:
         try:
-            from scipy.fft import fft, fftfreq
-            yf = fft(ht - ht.mean()); n = len(ht)
-            xf = fftfreq(n, 1/125.0); idx = (xf > 0) & (xf < 12.0)
+            yf = np.abs(np.fft.fft(ht - hm))[:len(ht)//2]
+            xf = np.fft.fftfreq(len(ht), 1/125.0)[:len(ht)//2]
+            idx = (xf > 0) & (xf < 12.0)
             if idx.any():
-                pxx = np.abs(yf[idx])**2
-                tpow = float(pxx.max()); tfreq = float(xf[idx][np.argmax(pxx)])
+                tpow = float(yf[idx].max()); tfreq = float(xf[idx][np.argmax(yf[idx])])
         except: pass
     
     slope = float(np.polyfit(np.arange(len(ht)), ht, 1)[0]) if len(ht) >= 10 else 0.0
+    def _b(x): return float((x > (np.mean(x) + 1.5*np.std(x))).sum() / len(x)) if len(x)>5 else 0.0
+    autoc = float(np.corrcoef(ht[:-1], ht[1:])[0,1]) if len(ht) >= 10 else 0.0
     
-    def _bursts(x):
-        if len(x) < 5: return 0.0
-        m = x.mean(); s = x.std()
-        return float((x > (m + 1.5*s)).sum() / len(x))
+    # 37-39: Entropy, Velocity, Correlation
+    ent = _shannon_entropy(ht)
+    vel = float(np.sqrt((np.diff(ht)**2).mean()))
+    hfc = float(np.corrcoef(ht, ft)[0,1]) if len(ht) >= 10 else 0.0
     
-    autoc = float(np.corrcoef(ht[:-1], ht[1:])[0, 1]) if len(ht) >= 10 else 0.0
-    ht_ft_corr = float(np.corrcoef(ht, ft)[0, 1]) if len(ht) >= 10 else 0.0
+    # 40-48: Segmental & Drift
+    nh = len(ht); n3 = nh // 3
+    e_m = float(np.median(ht[:n3])) if n3>0 else hm
+    e_s = float(np.std(ht[:n3])) if n3>0 else hs
+    m_m = float(np.median(ht[n3:2*n3])) if n3>0 else hm
+    m_s = float(np.std(ht[n3:2*n3])) if n3>0 else hs
+    l_m = float(np.median(ht[2*n3:])) if n3>0 else hm
+    l_s = float(np.std(ht[2*n3:])) if n3>0 else hs
     
-    nh = len(ht); nh3 = nh // 3
-    early = float(np.median(ht[:nh3])) if nh3 > 0 else hm
-    mid = float(np.median(ht[nh3:2*nh3])) if nh3 > 0 else hm
-    late = float(np.median(ht[2*nh3:])) if nh3 > 0 else hm
+    drift = float((l_m - e_m) / (max(l_m, e_m, 1.0)))
+    v_drf = float(np.var(ht[nh//2:]) / (np.var(ht[:nh//2]) + 1e-8))
+    fatig = float(np.median(ht[nh//2:]) / (np.median(ht[:nh//2]) + 1e-8))
     
-    dfa_ht = _dfa_alpha(ht); dfa_ft = _dfa_alpha(ft); dfa_lat = _dfa_alpha(lat)
-    pent_ht_H, pent_ht_C = _perm_entropy_complexity(ht)
-    pent_ft_H, pent_ft_C = _perm_entropy_complexity(ft)
-    pent_lat_H, pent_lat_C = _perm_entropy_complexity(lat)
+    # 49-51: Typing Speed (TS)
+    tsm = float(np.mean(lat))
+    tss = float(np.std(lat))
+    tdd = float(_b(ht) - _b(lat))
     
-    bigrams = _bigram_features(key, lat)
+    # 52-60: DFA & Permutation Entropy
+    dfa_h = _dfa_alpha(ht); dfa_f = _dfa_alpha(ft); dfa_l = _dfa_alpha(lat)
+    phh, phc = _perm_entropy_complexity(ht)
+    pfh, pfc = _perm_entropy_complexity(ft)
+    plh, plc = _perm_entropy_complexity(lat)
+    
+    # 61-75: Bigrams (15)
+    bg_f = _bigram_features(key, lat)
     
     return np.array(ht_f + ft_f + lat_f + hand_f + [
-        tpow, tfreq, slope, _bursts(ht), _bursts(lat), autoc, pent_ht_H, 
-        float(np.sqrt((np.diff(ht)**2).mean())), ht_ft_corr, early, 
-        float(ht[:nh3].std() if nh3 > 0 else hs), mid, 
-        float(ht[nh3:2*nh3].std() if nh3 > 0 else hs), late, 
-        float(ht[2*nh3:].std() if nh3 > 0 else hs), 
-        float((late - early) / (max(late, early, 1.0))), 
-        float(np.var(ht[nh//2:]) / (np.var(ht[:nh//2]) + 1e-8)), 
-        float(np.median(ht[nh//2:]) / (np.median(ht[:nh//2]) + 1e-8)), 
-        float(lat.mean()), float(lat.std()), float((_bursts(ht) - _bursts(lat))), 
-        dfa_ht, dfa_ft, dfa_lat, pent_ht_H, pent_ht_C, pent_ft_H, pent_ft_C, 
-        pent_lat_H, pent_lat_C] + bigrams, dtype=np.float64)
+        tpow, tfreq, slope, _b(ht), _b(lat), autoc, ent, vel, hfc,
+        e_m, e_s, m_m, m_s, l_m, l_s, drift, v_drf, fatig,
+        tsm, tss, tdd, dfa_h, dfa_f, dfa_l, phh, phc, pfh, pfc, plh, plc
+    ] + bg_f)
 
 def get_quantisation_mask(polling_hz: int) -> dict:
     if polling_hz >= 1000: return {'q_ms': 1.0, 'reliability': {}}
@@ -147,127 +171,328 @@ def get_quantisation_mask(polling_hz: int) -> dict:
     if polling_hz >= 500: rel = {k: v*1.5 for k, v in rel.items()}
     return {'q_ms': q, 'reliability': rel}
 
-def extract_base_feature_name(name: str) -> str:
-    parts = name.split('_')
-    if parts[0] in ['mean', 'std', 'max', 'min', 'range', 'q1', 'q3']:
-        return '_'.join(parts[1:])
-    return name
+def motor_clean_filter(keystrokes: list) -> list:
+    """
+    Remove outliers and 'noisy' keystrokes that represent gaps, 
+    long cognitive pauses, or glitches rather than motor behavior.
+    """
+    cleaned = []
+    for k in keystrokes:
+        ht = float(k.get('hold_time') if k.get('hold_time') is not None else 0)
+        lat = float(k.get('latency') if k.get('latency') is not None else 0)
+        
+        # 1. Hardware logic: latencies < 2ms usually glitches
+        if lat < 2.0: continue
+        
+        # 2. Motor logic: hold_time should be 10ms - 1000ms
+        if not (10 <= ht <= 1000): continue
+        
+        # 3. Behavioral logic: gaps > 3sec are usually pauses
+        if lat > 3000: continue
+        
+        # 4. Optional: exclude backspaces as they have different motor patterns
+        key_id = str(k.get('keyId', '')).lower()
+        if key_id in {'backspace', 'back', 'delete', 'del'}: continue
+        
+        cleaned.append(k)
+    return cleaned
 
-def motor_clean_filter(keystrokes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    CORRECTION_KEYS = {'backspace', 'back', 'delete', 'del'}
-    PRE_BURST_WINDOW_MS = 500
+def get_keystroke_windows(keystrokes: list, 
+                         window_size: int = 100, 
+                         step: int = 50) -> list:
+    """
+    Extracts high-dimensional feature vectors per window.
+    """
     n = len(keystrokes)
-    if n == 0: return keystrokes
-    bs_indices = set()
-    for i, k in enumerate(keystrokes):
-        key_name = str(k.get('keyId', '')).lower()
-        if key_name in CORRECTION_KEYS: bs_indices.add(i)
-    corrected = set(); correction_count = 0
-    for i in range(n - 1, -1, -1):
-        if i in bs_indices: correction_count += 1
-        elif correction_count > 0: corrected.add(i); correction_count -= 1
-    in_burst_zone = set(); i = 0
-    while i < n:
-        if i in bs_indices:
-            burst_start = i; ms_back = 0; j = burst_start - 1
-            while j >= 0 and j not in bs_indices:
-                iki = keystrokes[j + 1].get('latency') or 0
-                ms_back += iki
-                if ms_back > PRE_BURST_WINDOW_MS: break
-                in_burst_zone.add(j); j -= 1
-            while i < n and i in bs_indices: i += 1
-        else: i += 1
-    excluded = bs_indices | corrected | in_burst_zone
-    survivors = [k for idx, k in enumerate(keystrokes) if idx not in excluded]
-    if len(survivors) < 2: return survivors
-    original_indices = [idx for idx in range(n) if idx not in excluded]
-    result = []
-    for si, orig_idx in enumerate(original_indices):
-        ks = dict(survivors[si])
-        if si == 0: ks['latency'] = None
-        else:
-            prev_orig_idx = original_indices[si - 1]
-            if orig_idx != prev_orig_idx + 1: ks['latency'] = None
-        result.append(ks)
-    return result
+    vectors = []
+    for start in range(0, n - window_size + 1, step):
+        end = start + window_size
+        win = keystrokes[start:end]
+        
+        # Extract base vectors for this window
+        ht = [k['hold_time'] for k in win]
+        ft = [k.get('flight_time', 0) or 0 for k in win]
+        lat = [k.get('latency', 0) or 0 for k in win]
+        keys = [k.get('keyId', '') for k in win]
+        
+        feat_vec = extract_features(ht, ft, lat, keys)
+        vectors.append(feat_vec)
+        
+    return vectors
 
-def get_keystroke_windows(keystrokes: List[Dict[str, Any]], polling_hz: int = 125) -> List[np.ndarray]:
-    WINDOW, STEP = 100, 50
-    keystrokes = motor_clean_filter(keystrokes)
+def aggregate_windows(vectors: list) -> np.ndarray:
+    """
+    Returns a 2D numpy array [n_windows, 75]
+    """
+    if not vectors: return np.empty((0, 75))
+    return np.vstack(vectors)
+
+def aggregate_session_features(X_windows: np.ndarray) -> np.ndarray:
+    """
+    Aggregates window-level features (75) into session-level (526).
+    Stats calculated for each feature: mean, std, max, min, range, q1, q3.
+    Final feature (526) is window_count.
+    """
+    if X_windows.size == 0:
+        return np.zeros((1, 526))
+    
+    stats = []
+    # mean
+    stats.append(np.mean(X_windows, axis=0))
+    # std
+    stats.append(np.std(X_windows, axis=0))
+    # max
+    stats.append(np.max(X_windows, axis=0))
+    # min
+    stats.append(np.min(X_windows, axis=0))
+    # range
+    stats.append(np.max(X_windows, axis=0) - np.min(X_windows, axis=0))
+    # q1 (25th percentile)
+    stats.append(np.percentile(X_windows, 25, axis=0))
+    # q3 (75th percentile)
+    stats.append(np.percentile(X_windows, 75, axis=0))
+    
+    # hstack them
+    session_vec = np.hstack(stats) # (525,)
+    
+    # 526th feature: window_count
+    session_vec = np.append(session_vec, float(len(X_windows)))
+    
+    return session_vec.reshape(1, -1)
+
+def build_feature_matrix(keystrokes: list, 
+                        window_size: int = 100, 
+                        step: int = 50) -> Optional[np.ndarray]:
+    """
+    Full pipeline to convert raw list -> aggregate feature matrix.
+    Used by screening_api.py and main.py endpoints.
+    """
+    if len(keystrokes) < 150: return None
+    
+    clean_ks = motor_clean_filter(keystrokes)
+    if len(clean_ks) < window_size: return None
+    
+    windows = get_keystroke_windows(clean_ks, window_size, step)
+    if not windows: return None
+    
+    return aggregate_windows(windows)
+
+def preprocess(X_raw: np.ndarray, prep_bundle: dict, keyboard_polling_hz: Optional[int] = None) -> np.ndarray:
+    """
+    Applies VarianceThreshold → column selection → RobustScaler.
+    Keys in the pickle bundle:
+      'variance_threshold' : fitted VarianceThreshold (526 → some subset)
+      'selected_feat_idx'  : np.ndarray indices to pick 80 cols from VT output
+      'scaler'             : fitted RobustScaler (80 features)
+    Falls back gracefully if any step is absent.
+    """
+    X = X_raw.copy()
+    
+    # Step 1: RobustScaler (fitted on all 526 features originally, so MUST precede compression)
+    scaler = prep_bundle.get('scaler')
+    if scaler is not None:
+        try:
+            X = scaler.transform(X)
+        except Exception:
+            pass
+            
+    # Step 2: VarianceThreshold
+    vt = prep_bundle.get('variance_threshold')
+    if vt is None:
+        vt = prep_bundle.get('vt')
+        
+    if vt is not None:
+        try:
+            X = vt.transform(X)
+        except Exception:
+            pass  # skip if shape mismatch
+            
+    # Step 3: Feature selection (stored as 'selected_feat_idx', fallback 'selected_idx')
+    sel_idx = prep_bundle.get('selected_feat_idx')
+    if sel_idx is None:
+        sel_idx = prep_bundle.get('selected_idx')
+        
+    if sel_idx is not None:
+        # sel_idx could be a numpy array, check its length/size
+        try:
+            if hasattr(sel_idx, 'size'):
+                has_elements = sel_idx.size > 0
+            else:
+                has_elements = len(sel_idx) > 0
+                
+            if has_elements:
+                X = X[:, sel_idx]
+        except Exception:
+            pass  # skip if out of range
+            
+    return X
+
+TAPPY_MEDIAN_IKI = 187.0
+
+def detect_correction_windows(keystrokes: list,
+                               window_size: int = 100,
+                               step: int = 50) -> list:
+    """
+    Returns boolean mask — True means the window contains a
+    correction event (cognitive pause followed by backspace).
+    These windows are excluded from feature aggregation.
+    """
+    ikis = [k['latency'] for k in keystrokes
+            if k.get('latency') and 0 < k['latency'] < 10000]
+    if not ikis:
+        return []
+
+    median_iki   = float(np.median(ikis))
+    pause_thresh = median_iki * 3.0
+
     n = len(keystrokes)
-    if n < 150: return []
-    all_il = [k['latency'] for k in keystrokes if k.get('latency') and 0 < k['latency'] < 10000]
-    if len(all_il) < 20: return []
-    mask = get_quantisation_mask(polling_hz); q_ms = mask['q_ms']
-    median_iki = float(np.median(all_il))
-    spike_thresh = max(median_iki * 6.0, q_ms * 3)
-    wins = []; spike_threshold_ratio = 0.20 if polling_hz < 500 else 0.12
-    for ws in range(0, n - WINDOW + 1, STEP):
-        window_ks = keystrokes[ws:ws+WINDOW]
-        window_il = [k['latency'] for k in window_ks if k.get('latency') and k['latency'] > 0]
-        spike_count = sum(1 for il in window_il if il > spike_thresh)
-        if (spike_count / max(len(window_il), 1)) > spike_threshold_ratio: continue
-        ht = np.array([k['hold_time'] for k in window_ks])
-        ft = np.array([min(k.get('flight_time', 0) or 0, 2000.0) for k in window_ks])
-        lt = np.array([k.get('latency', 0) or 0 for k in window_ks])
-        k_list = [ks.get('keyId', '') for ks in window_ks]
-        f = extract_features(ht, ft, lt, k_list)
-        if np.isfinite(f).all(): wins.append(f)
-    return wins
+    contaminated = set()
 
-def aggregate_windows(wins: List[np.ndarray]) -> Optional[np.ndarray]:
-    if not wins: return None
-    arr = np.array(wins, dtype=np.float32)
-    def trimmed_median(data, axis=0):
-        if data.shape[0] < 5: return np.median(data, axis=axis)
-        low, high = np.percentile(data, [15, 85], axis=axis)
-        mask = (data >= low) & (data <= high)
-        return np.array([np.median(data[mask[:, i], i]) if mask[:, i].any() else np.median(data[:, i]) for i in range(data.shape[1])])
-    agg_medians = trimmed_median(arr, axis=0)
-    user_f = np.concatenate([agg_medians, arr.std(0), arr.max(0), arr.min(0), arr.max(0) - arr.min(0), np.percentile(arr, 25, axis=0), np.percentile(arr, 75, axis=0), [arr.shape[0]]])
-    return user_f.reshape(1, -1)
+    for i, ks in enumerate(keystrokes):
+        lat = ks.get('latency') or 0
+        if lat > pause_thresh:
+            lookahead = keystrokes[i+1:i+6]
+            has_backspace = any(
+                str(k.get('keyId', '')).lower() in {'backspace', 'back', 'delete', 'del'}
+                for k in lookahead
+            )
+            if has_backspace:
+                for j in range(max(0, i-5), min(n, i+10)):
+                    contaminated.add(j)
 
-def build_feature_matrix(keystrokes: List[Dict[str, Any]], polling_hz: int = 125) -> Optional[np.ndarray]:
-    wins = get_keystroke_windows(keystrokes, polling_hz)
-    return aggregate_windows(wins)
+    mask = []
+    for ws in range(0, n - window_size + 1, step):
+        window_idx = set(range(ws, ws + window_size))
+        mask.append(bool(window_idx & contaminated))
 
-def preprocess(X_raw: np.ndarray, prep_bundle: dict, polling_hz: int = 125) -> np.ndarray:
-    X = prep_bundle['scaler'].transform(X_raw)
-    if prep_bundle.get('variance_threshold'): X = prep_bundle['variance_threshold'].transform(X)
-    idx = [prep_bundle['feat_names_sel'].index(n) for n in prep_bundle['feat_names_sel']] # simplified for parity
-    X_out = X[:, idx].copy(); mask = get_quantisation_mask(polling_hz)
-    for i, name in enumerate(prep_bundle['feat_names_sel']):
-        bname = extract_base_feature_name(name)
-        rel = mask['reliability'].get(bname, 1.0)
-        if rel < 1.0: X_out[0, i] *= rel
-    return X_out
+    return mask
 
-def apply_speed_normalisation(keystroke_dicts: list, X_raw: np.ndarray, feat_names: list) -> np.ndarray:
-    ikis = [k['latency'] for k in keystroke_dicts if k.get('latency') and 0 < k['latency'] < 10000]
-    if len(ikis) < 20: return X_raw
-    speed_ratio = np.median(ikis) / 187.0
-    IKI_PROPORTIONAL_FEATURES = {'lat_mean','lat_med','lat_std','lat_p90','bg1_mean','bg2_mean','bg3_mean','bg4_mean','bg5_mean','early_ht_med','mid_ht_med','late_ht_med','velocity'}
+def apply_speed_normalisation(X_raw: np.ndarray,
+                               keystrokes: list,
+                               feat_names_all: list) -> np.ndarray:
+    """
+    Normalise IKI-proportional features by the user's own typing speed
+    relative to the Tappy population median.
+    Prevents fast typists from being penalised for low IKI values.
+    """
+    ikis = [k['latency'] for k in keystrokes
+            if k.get('latency') and 0 < k['latency'] < 10000]
+    if len(ikis) < 20:
+        return X_raw
+
+    user_median = float(np.median(ikis))
+    speed_ratio = user_median / TAPPY_MEDIAN_IKI
+    speed_ratio = float(np.clip(speed_ratio, 0.5, 2.0))
+
+    IKI_PROPORTIONAL = {
+        'lat_mean', 'lat_med', 'lat_std', 'lat_p90', 'lat_max',
+        'lat_p10', 'lat_cov',
+        'bg1_mean', 'bg2_mean', 'bg3_mean', 'bg4_mean', 'bg5_mean',
+        'early_ht_med', 'mid_ht_med', 'late_ht_med', 'ht_drift',
+        'velocity', 'ts_mean', 'ts_std',
+    }
+
     X_corrected = X_raw.copy()
-    for i, name in enumerate(feat_names):
-        base = name.split('_', 1)[1] if '_' in name else name
-        if base in IKI_PROPORTIONAL_FEATURES: X_corrected[0, i] *= speed_ratio
+    PREFIXES = ['mean_', 'std_', 'max_', 'min_', 'range_', 'q1_', 'q3_']
+
+    for i, name in enumerate(feat_names_all):
+        base = name.lower()
+        for prefix in PREFIXES:
+            if base.startswith(prefix):
+                base = base[len(prefix):]
+                break
+        if base in IKI_PROPORTIONAL:
+            X_corrected[0, i] *= speed_ratio
+
     return X_corrected
 
-def get_bigram_alignment_score(keystroke_dicts: list) -> float:
-    if len(keystroke_dicts) < 2: return 0.5
-    _LEFT_CHARS = set('`12345qwertasdfgzxcvbQWERTASDFGZXCVB')
-    def get_hand(k): return 'L' if str(k.get('keyId', ''))[:1] in _LEFT_CHARS else 'R'
-    hand_stream = [get_hand(k) for k in keystroke_dicts]
-    from collections import Counter
-    counts = Counter([hand_stream[i]+hand_stream[i+1] for i in range(len(hand_stream)-1)])
-    return float((counts.get('LR', 0) + counts.get('RL', 0)) / max(sum(counts.values()), 1))
+def extract_base_feature_name(name: str) -> str:
+    """Removes aggregation prefixes to get the underlying feature name."""
+    PREFIXES = ['mean_', 'std_', 'max_', 'min_', 'range_', 'q1_', 'q3_']
+    base = name.lower()
+    for prefix in PREFIXES:
+        if base.startswith(prefix):
+            return base[len(prefix):]
+    return base
+
+def compute_ood_score(X_raw: np.ndarray,
+                      scaler,
+                      feat_names_all: list) -> dict:
+    """
+    Uses the fitted RobustScaler's center_ and scale_ (which represent
+    the Tappy training population distribution) to measure how far
+    outside the training distribution this session is.
+    """
+    center = np.array(scaler.center_)
+    scale  = np.array(scaler.scale_)
+    z      = (X_raw[0] - center) / (scale + 1e-8)
+
+    mad              = float(np.median(np.abs(z)))
+    extreme_fraction = float(np.mean(np.abs(z) > 3.0))
+
+    if mad < 1.0 and extreme_fraction < 0.10:
+        grade   = 'In-Distribution'
+        warning = None
+    elif mad < 2.0 and extreme_fraction < 0.25:
+        grade   = 'Marginal'
+        warning = 'Some features differ from the training population.'
+    else:
+        grade   = 'Out-of-Distribution'
+        warning = (
+            f'{round(extreme_fraction*100)}% of features are far outside '
+            f'the training data range. Result reliability is reduced.'
+        )
+
+    top_extreme = [
+        feat_names_all[i]
+        for i in np.argsort(np.abs(z))[::-1][:5]
+        if i < len(feat_names_all)
+    ]
+
+    return {
+        'ood_grade':             grade,
+        'ood_mad':               round(mad, 3),
+        'extreme_fraction':      round(extreme_fraction, 3),
+        'ood_warning':           warning,
+        'most_extreme_features': top_extreme,
+    }
 
 class FeatureExtractor:
-    def __init__(self, prep_bundle: Optional[dict] = None): self.prep_bundle = prep_bundle
+    def __init__(self, prep_bundle: Optional[dict] = None): 
+        self.prep_bundle = prep_bundle
+
+    @staticmethod
+    def build_user_feature_vector(keystrokes: list, window_size=100, step=50):
+        # 1. Basic check
+        if len(keystrokes) < 150:
+            return None, 0
+            
+        # 2. Get windows (after motor clean)
+        keystrokes_cleaned = motor_clean_filter(keystrokes)
+        
+        # 3. Detect correction contaminated windows
+        correction_mask = detect_correction_windows(keystrokes_cleaned, window_size, step)
+        
+        # 4. Get base windows
+        wins = get_keystroke_windows(keystrokes_cleaned)
+        
+        # 5. Filter windows if mask provided (get_keystroke_windows does its own spike filtering)
+        # Parity with STEP 6
+        if correction_mask:
+            wins = [w for idx, w in enumerate(wins) if not correction_mask[idx % len(correction_mask)]]
+            
+        if len(wins) < 2:
+            return None, 0
+            
+        X_windows = aggregate_windows(wins)
+        X_session = aggregate_session_features(X_windows)
+        return X_session, len(wins)
+
     def getTemporalFeatures(self, ht, ft, lat, key=None) -> np.ndarray:
-        # For simplicity, we create dict list to use internal windowing
+        # Compatibility stub
         ks = [{'hold_time': h, 'flight_time': f, 'latency': l, 'keyId': k} for h, f, l, k in zip(ht, ft, lat, key)]
-        wins = get_keystroke_windows(ks)
-        return np.array(wins) if wins else np.empty((0, 75))
+        X, _ = self.build_user_feature_vector(ks)
+        return X if X is not None else np.empty((0, 75))
+
     def getAggregatedFeatures(self, windows) -> np.ndarray:
         return aggregate_windows(list(windows)) if len(windows) > 0 else None

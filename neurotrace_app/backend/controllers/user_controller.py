@@ -17,6 +17,7 @@ class UserController:
         db_user = User(
             name=user_data.name,
             email=user_data.email,
+            username=user_data.username or user_data.email,
             dob=user_data.dob,
             age=user_data.age,
             gender=user_data.gender,
@@ -33,7 +34,11 @@ class UserController:
         if not user or not verify_password(credentials.password, user.hashed_password):
             return None
         
-        access_token = create_access_token(data={"sub": user.email, "id": str(user.id)})
+        access_token = create_access_token(data={
+            "sub": user.email, 
+            "id": str(user.id),
+            "age": user.age or 30
+        })
         return Token(access_token=access_token, token_type="bearer")
 
     def reset_password(self, payload: UserResetPassword) -> bool:

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { TAPPY_PROTOCOL } from '../constants/tappyProtocol';
 
-const API = 'http://127.0.0.1:8421';
+const API = import.meta.env.VITE_API_URL;
 
 export function useTappyTest() {
   const [state, setState] = useState('IDLE'); // IDLE | WARMUP | ACTIVE | COMPLETE | PROCESSING | RESULTS

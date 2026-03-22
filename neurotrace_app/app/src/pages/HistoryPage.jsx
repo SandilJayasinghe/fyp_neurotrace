@@ -114,6 +114,29 @@ export function HistoryPage({ onBack, onViewResult }) {
             </div>
         </div>
       </header>
+      {/* SECTION: Mean Average Statistics (New Step 10 Implementation) */}
+      {!loading && sessions.length > 0 && (() => {
+          const validProbs = sessions.map(s => Number(s.ai_result?.probability || s.ai_result?.riskLabel || 0)).filter(v => v > 0);
+          const avgProb = validProbs.length > 0 ? (validProbs.reduce((a, b) => a + b, 0) / validProbs.length) : 0;
+          
+          const validWPMs = sessions.map(s => Number(s.summary?.wpm || s.wpm || 0)).filter(v => v > 0);
+          const avgWPM = validWPMs.length > 0 ? (validWPMs.reduce((a, b) => a + b, 0) / validWPMs.length) : 0;
+          
+          const validAccs = sessions.map(s => Number(s.summary?.accuracy || s.accuracy || 0)).filter(v => v > 0);
+          const avgAccuracy = validAccs.length > 0 ? (validAccs.reduce((a, b) => a + b, 0) / validAccs.length) : 0;
+          
+          return (
+            <section className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10 animate-in slide-in-from-top duration-500">
+                <StatCard label="Mean Risk Score" value={`${(avgProb * 100).toFixed(1)}%`} sub="Longitudinal Average" color="text-sky-400" />
+                <StatCard label="Average Velocity" value={`${avgWPM.toFixed(0)} WPM`} sub="Typing Speed Mean" color="text-white" />
+                <StatCard label="Consistency" value={`${avgAccuracy.toFixed(1)}%`} sub="Avg. Session Accuracy" color="text-emerald-400" />
+                <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] flex flex-col justify-center">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 italic">Total Dataset</span>
+                    <span className="text-xl font-black text-white italic">{sessions.length} Sessions</span>
+                </div>
+            </section>
+          );
+      })()}
 
       <main>
         <div className="bg-[#0a0f1d]/60 backdrop-blur-xl rounded-[2rem] border border-slate-800/50 shadow-2xl overflow-hidden min-h-[400px]">
@@ -139,7 +162,7 @@ export function HistoryPage({ onBack, onViewResult }) {
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: idx * 0.05 }}
-                                key={s.session_id}
+                                key={s.session_id || `session-${idx}`}
                                 onClick={() => handleRowClick(s.session_id)}
                                 className="group hover:bg-sky-500/[0.02] cursor-pointer transition-colors relative"
                             >
@@ -160,7 +183,7 @@ export function HistoryPage({ onBack, onViewResult }) {
                                             <span className={`px-4 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${s.ai_result.probability >= (s.ai_result.threshold_used || 0.65) ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
                                                 {s.ai_result.probability >= (s.ai_result.threshold_used || 0.65) ? 'Elevated Signal' : 'Normal Range'}
                                             </span>
-                                            <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">{(s.ai_result.probability * 100).toFixed(1)}% Score</span>
+                                            <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">{(((s.ai_result?.probability || s.ai_result?.riskLabel || 0) * 100).toFixed(1))}% Score</span>
                                         </div>
                                     ) : (
                                         <span className="text-[9px] font-black text-slate-700 uppercase italic tracking-widest opacity-30 underline decoration-slate-800">Unprocessed</span>
@@ -223,4 +246,14 @@ export function HistoryPage({ onBack, onViewResult }) {
       </AnimatePresence>
     </div>
   );
+}
+
+function StatCard({ label, value, sub, color }) {
+    return (
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] flex flex-col gap-1 hover:border-sky-500/20 transition-all">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{label}</span>
+            <span className={`text-2xl font-black italic tabular-nums ${color}`}>{value}</span>
+            <span className="text-[9px] font-bold text-slate-700 uppercase tracking-tighter opacity-70 mt-1">{sub}</span>
+        </div>
+    );
 }

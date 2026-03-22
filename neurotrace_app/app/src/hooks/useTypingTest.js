@@ -1,19 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import { getRandomPrompt } from '../data/typingPrompts';
 
-const API = 'http://127.0.0.1:8421';
-
-export const PROMPT_TEXT =
-  "The surgeon carefully examined the patient's trembling hands before beginning the delicate procedure. " +
-  "Regular physical therapy sessions improve coordination and reduce the severity of motor symptoms over time. " +
-  "She typed slowly but deliberately, pressing each key with measured force as the clock ticked quietly on the wall.";
+const API = import.meta.env.VITE_API_URL;
 
 export function useTypingTest() {
   // 1. All useState declarations
+  const [currentPrompt, setCurrentPrompt] = useState(getRandomPrompt());
   const [state, setState] = useState('IDLE'); // IDLE | ACTIVE | PROCESSING | RESULTS
   const [cursor, setCursor] = useState(0);
-  const [charStatuses, setCharStatuses] = useState(() => Array(PROMPT_TEXT.length).fill('pending'));
-  const charStatusesRef = useRef(Array(PROMPT_TEXT.length).fill('pending'));
+  const [charStatuses, setCharStatuses] = useState(() => Array(200).fill('pending')); // Initial placeholder
+  const charStatusesRef = useRef([]);
   const [validCount, setValidCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
   const [result, setResult] = useState(null);
@@ -34,7 +31,7 @@ export function useTypingTest() {
     if (state !== 'ACTIVE') return;
 
     const typedChar = packet.char;
-    const expectedChar = PROMPT_TEXT[cursorRef.current];
+    const expectedChar = currentPrompt[cursorRef.current];
 
     // Update rolling metrics window (last 30 keystrokes)
     metricsWindow.current.push(packet);
@@ -49,7 +46,9 @@ export function useTypingTest() {
       setCursor(cursorRef.current);
       setValidCount(prev => prev + 1);
       keystrokeBuffer.current.push({
-        key: typedChar,
+        keyId: typedChar,
+        timeStamp: packet.timestamp || Date.now(),
+        type: packet.hand || 'Unknown',
         hold_time: packet.hold_time,
         flight_time: packet.flight_time ?? null,
         latency: packet.latency ?? null,
@@ -69,7 +68,7 @@ export function useTypingTest() {
     cursorRef.current = 0;
     errorCountRef.current = 0;
     setCursor(0);
-    charStatusesRef.current = Array(PROMPT_TEXT.length).fill('pending');
+    charStatusesRef.current = Array(currentPrompt.length).fill('pending');
     setCharStatuses(charStatusesRef.current.slice());
     setValidCount(0);
     setErrorCount(0);
@@ -129,12 +128,17 @@ export function useTypingTest() {
         }
       }
 
+      if (!sessionId.current) sessionId.current = `upload_${Date.now()}`;
+      if (!startTime.current) startTime.current = Date.now();
+
       const payload = {
-        session_id: sessionId.current,
-        keystrokes: keystrokeBuffer.current,
+        sessionId: sessionId.current,
+        startTime: startTime.current,
+        keystrokeEvents: keystrokeBuffer.current,
         ...keyboardMeta,
       };
 
+      const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const { data } = await axios.post(`${API}/predict`, payload, { headers });
 
@@ -175,11 +179,13 @@ export function useTypingTest() {
   }, []);
 
   const reset = useCallback(() => {
+    const newPrompt = getRandomPrompt();
+    setCurrentPrompt(newPrompt);
     setState('IDLE');
     cursorRef.current = 0;
     errorCountRef.current = 0;
     setCursor(0);
-    charStatusesRef.current = Array(PROMPT_TEXT.length).fill('pending');
+    charStatusesRef.current = Array(newPrompt.length).fill('pending');
     setCharStatuses(charStatusesRef.current.slice());
     setValidCount(0);
     setErrorCount(0);
@@ -219,10 +225,10 @@ export function useTypingTest() {
 
   // Auto-analyse once the entire prompt has been typed
   useEffect(() => {
-    if (state === 'ACTIVE' && cursor >= PROMPT_TEXT.length) {
+    if (state === 'ACTIVE' && cursor >= currentPrompt.length) {
       analyse();
     }
-  }, [cursor, state, analyse]);
+  }, [cursor, state, analyse, currentPrompt]);
 
   // 5. Derived / computed values
 
@@ -266,6 +272,6 @@ export function useTypingTest() {
     startTest,
     analyse,
     reset,
-    PROMPT_TEXT,
+    PROMPT_TEXT: currentPrompt,
   };
 }

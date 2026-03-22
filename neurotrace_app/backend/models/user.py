@@ -11,6 +11,7 @@ class UserBase(SQLModel):
     username: str = Field(unique=True, index=True)
     dob: Optional[date] = None
     age: Optional[int] = Field(description="Contextual age for result normalization")
+    full_name: str = Field(default="", description="Full legal name")
     gender: Optional[str] = None
     country: Optional[str] = None
 
@@ -41,8 +42,8 @@ class User(UserBase, table=True):
 class UserCreate(UserBase):
     password: str
 
-class UserLogin(SQLModel):
-    username: str # Use username per diagram
+class UserLogin(BaseModel):
+    email: str
     password: str
 
 class UserResponse(UserBase):

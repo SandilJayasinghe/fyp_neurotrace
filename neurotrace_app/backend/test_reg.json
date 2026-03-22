@@ -1,0 +1,10 @@
+{
+    "name": "Sandil",
+    "email": "sandil@example.com",
+    "username": "sandil@example.com",
+    "password": "password123",
+    "dob": "1990-01-01",
+    "age": 34,
+    "gender": "Male",
+    "country": "Sri Lanka"
+}

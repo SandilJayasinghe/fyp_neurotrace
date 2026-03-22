@@ -99,7 +99,7 @@ export function MetricsVisualizer({ keystrokes, stats, onClose, onConfirm, canAn
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `neurotrace_biometrics_${Date.now()}.${ext}`;
+    link.download = `tremora_biometrics_${Date.now()}.${ext}`;
     link.click();
     URL.revokeObjectURL(url);
   };

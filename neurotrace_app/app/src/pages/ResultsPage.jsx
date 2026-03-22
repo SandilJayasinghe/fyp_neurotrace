@@ -127,11 +127,42 @@ export default function ResultsPage({ result, onRestart }) {
   };
 
   const multiVerdict = getMultiSessionVerdict(sessionHistory, result.threshold_used || 0.65);
-
   const timestamp = new Date().toLocaleString();
+
+  const FEATURE_INFO = {
+    'HT': { label: 'Hold Duration', meaning: 'Muscle release speed & finger stiffness' },
+    'FT': { label: 'Flight Speed', meaning: 'Velocity of movement between keystrokes' },
+    'IKI': { label: 'Press Rhythm', meaning: 'General coordination and timing consistency' },
+    'LATENCY': { label: 'Response Lag', meaning: 'Cognitive processing and reaction speed' },
+    'ENTROPY': { label: 'Rhythm Chaos', meaning: 'Stability of the neurological motor clock' },
+    'STD': { label: 'Variability', meaning: 'Consistency of timing during the session' },
+    'SKEW': { label: 'Asymmetry', meaning: 'Timing bias between hand or finger groups' },
+    'WPM': { label: 'Typing Velocity', meaning: 'Overall motor performance speed' }
+  };
+
+  const getLayman = (name) => {
+    const lower = name.toLowerCase();
+    let metric = "";
+    if (lower.includes('_mean')) metric = " (Average)";
+    else if (lower.includes('_std')) metric = " (Variability)";
+    else if (lower.includes('_skew')) metric = " (Asymmetry)";
+    else if (lower.includes('_q1')) metric = " (Lower Band)";
+    else if (lower.includes('_q3')) metric = " (Upper Band)";
+    else if (lower.includes('_max')) metric = " (Peak)";
+
+    const upper = name.toUpperCase();
+    for (const [key, info] of Object.entries(FEATURE_INFO)) {
+      if (upper.includes(key)) {
+        return { label: info.label + metric, meaning: info.meaning };
+      }
+    }
+    return { label: name + metric, meaning: 'Subtle motor timing pattern' };
+  };
+
   const formatName = (name) => {
     if (!name) return "";
-    return name.length > 30 ? name.slice(0, 27) + '...' : name;
+    const info = getLayman(name);
+    return info.label;
   };
 
   return (
@@ -187,7 +218,7 @@ export default function ResultsPage({ result, onRestart }) {
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">{timestamp}</p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm font-bold text-slate-400 mr-2 px-4 py-2 bg-slate-950 rounded-xl border border-slate-800 hidden sm:block">user@neurotrace.dev</span>
+          <span className="text-sm font-bold text-slate-400 mr-2 px-4 py-2 bg-slate-950 rounded-xl border border-slate-800 hidden sm:block">user@tremora.dev</span>
           <button 
             type="button"
             onClick={handleDownloadReport}
@@ -208,83 +239,137 @@ export default function ResultsPage({ result, onRestart }) {
 
       <div className="space-y-6">
         
-        {/* SECTION 2 — Score + Verdict */}
+        {/* SECTION 2 — Score + Verdict (Step 9 Implementation) */}
         <section className="flex flex-col lg:flex-row items-stretch gap-6">
-          {/* Left Column (40%) */}
+          {/* Left Column: Result Visualization (Z-Score or Prob) */}
           <div className="w-full lg:w-[40%] bg-[#0a0f1d] border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl flex flex-col gap-8 justify-center relative overflow-hidden">
             <div className="absolute top-[-50%] left-[-50%] w-full h-full bg-sky-500/10 blur-[100px] rounded-full pointer-events-none" />
             
-            <div className="z-10 bg-white/5 rounded-[2rem] p-4 mx-auto w-full max-w-sm">
-                <RiskGauge probability={result.probability} />
+            <div className={`z-10 bg-white/5 rounded-[2rem] p-4 mx-auto w-full max-w-sm flex items-center justify-center min-h-[250px]`}>
+               <div className="text-center w-full">
+                 <RiskGauge probability={result.riskLabel || result.probability || 0} />
+                 <div className="mt-4 p-4 bg-slate-900/60 rounded-2xl border border-slate-700/50">
+                   {result.personal_baseline?.baseline_ready ? (
+                     <>
+                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Personal Z-Score</p>
+                       <p className={`text-4xl font-black ${result.personal_baseline.status_colour === 'green' ? 'text-emerald-400' : result.personal_baseline.status_colour === 'amber' ? 'text-amber-400' : 'text-rose-400'}`}>
+                         {result.personal_baseline.z_score >= 0 ? '+' : ''}{result.personal_baseline.z_score.toFixed(2)}
+                       </p>
+                     </>
+                   ) : (
+                     <div className="flex flex-col items-center gap-1">
+                        <p className="text-[10px] text-sky-400 font-bold uppercase tracking-widest flex items-center gap-1 italic">
+                          <History size={10} /> Calibration Phase
+                        </p>
+                        <p className="text-[11px] text-slate-400 leading-tight">
+                          Need {result.personal_baseline?.sessions_needed || 3} more sessions for Z-score baseline.
+                        </p>
+                     </div>
+                   )}
+                 </div>
+               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4 z-10">
               <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Score</p>
-                <p className="text-xl font-black text-white">{(result.probability * 100).toFixed(1)}%</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Research Prob.</p>
+                <p className="text-xl font-black text-white">{((result.riskLabel || result.probability || 0) * 100).toFixed(1)}%</p>
               </div>
               <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Confidence</p>
-                <p className={`text-xl font-black ${result.confidence_band === 'High' ? 'text-emerald-400' : result.confidence_band === 'Moderate' ? 'text-sky-400' : 'text-amber-400'}`}>{result.confidence_band}</p>
+                <p className={`text-sm font-black uppercase tracking-widest ${result.confidence_band === 'High' ? 'text-emerald-400' : result.confidence_band === 'Moderate' ? 'text-sky-400' : 'text-amber-400'}`}>{result.confidence_band}</p>
               </div>
               <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Keystrokes</p>
-                <p className="text-xl font-black text-white">{result.n_keystrokes}</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Status</p>
+                <p className={`text-sm font-black uppercase tracking-widest ${result.personal_baseline?.status_colour === 'green' ? 'text-emerald-400' : result.personal_baseline?.status_colour === 'amber' ? 'text-amber-400' : 'text-rose-400'}` || 'text-slate-500'}>
+                    {result.personal_baseline?.status || 'N/A'}
+                </p>
               </div>
               <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">L/R Ratio</p>
-                <p className="text-xl font-black text-rose-300">{result.lr_ratio?.toFixed(2) || "N/A"}</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">OOD Class</p>
+                <p className={`text-sm font-black uppercase tracking-widest ${result.oodGrade === 'In-Distribution' ? 'text-emerald-400' : 'text-rose-300'}`}>{result.oodGrade}</p>
               </div>
             </div>
           </div>
 
-          {/* Right Column (60%) */}
-          <div className="w-full lg:w-[60%] bg-[#0a0f1d] border border-slate-800 p-10 rounded-[2.5rem] shadow-2xl flex flex-col">
-            
-            {result.session_quality && (() => {
-              const qualityColour = {
-                'Good': 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
-                'Fair': 'border-amber-500/30 bg-amber-500/10 text-amber-400',
-                'Poor': 'border-rose-500/30 bg-rose-500/10 text-rose-400',
-              }[result.session_quality.grade] || 'border-slate-500/30 bg-slate-500/10 text-slate-400';
-
-              return (
-                <div className={`rounded-2xl border p-5 mb-6 ${qualityColour}`}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-xs uppercase tracking-widest">
-                      Session Quality: {result.session_quality.grade} ({result.session_quality.score}%)
-                    </span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">
-                      Spike rate: {result.session_quality.spike_ratio}%
-                    </span>
-                  </div>
-                  {result.session_quality.grade !== 'Good' && (
-                    <p className="mt-3 text-[13px] font-medium leading-relaxed opacity-90 text-slate-300">
-                      {result.session_quality.reason}. Try typing more slowly and naturally for a cleaner result.
+          {/* Right Column: Interpretation + Detailed Breakdown */}
+          <div className="w-full lg:w-[60%] flex flex-col gap-6">
+            <div className="bg-[#0a0f1d] border border-slate-800 p-10 rounded-[2.5rem] shadow-2xl flex-1 flex flex-col">
+                <h2 className="text-2xl font-black text-white italic border-b border-slate-800 pb-4 mb-6 uppercase tracking-widest">Interpretation</h2>
+                
+                <div className="flex-1 space-y-6">
+                    <p className="text-slate-400 text-[15px] leading-relaxed font-medium">
+                        {result.verdict}
                     </p>
-                  )}
                 </div>
-              );
-            })()}
 
-            <h2 className="text-2xl font-black text-white italic border-b border-slate-800 pb-4 mb-6 uppercase tracking-widest">Interpretation</h2>
-            
-            <div className="flex-1">
-              <p className="text-slate-300 text-[15px] leading-relaxed font-medium opacity-90">
-                {result.verdict}
-              </p>
+                <div className="mt-8 pt-6 border-t border-slate-800/50 flex flex-wrap gap-4 items-center justify-between">
+                    <div className="flex items-center gap-3 text-emerald-400">
+                        <ShieldCheck size={18} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Clinically Adjusted Analysis</span>
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-mono tracking-tighter">
+                        ID: {result?.sessionId?.split('-')?.[0] || result?.sessionId || 'SESS-ACT'} | Windows: {result?.n_windows || 0} | Keystrokes: {result?.n_keystrokes || 0}
+                    </div>
+                </div>
             </div>
 
-            <div className="mt-8 pt-6 border-t border-slate-800/50 bg-slate-900/30 p-4 rounded-2xl">
-              <div className="flex items-center gap-3 text-emerald-400 mb-2">
-                <ShieldCheck size={18} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Model Validation Metrics</span>
-              </div>
-              <p className="text-xs font-mono text-slate-400">
-                Model trained AUC: {result.aim_auc?.toFixed(3)} | 
-                Sensitivity: {(result.aim_sensitivity * 100).toFixed(1)}% | 
-                Specificity: {(result.aim_specificity * 100).toFixed(1)}%
-              </p>
+            {/* Collapsible Clinical Calculation Breakdown (New Step 9) */}
+            <div className="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl shadow-black/50">
+               <button 
+                 onClick={() => setShowRules(!showRules)}
+                 className="w-full p-4 flex items-center justify-between bg-slate-900/50 hover:bg-slate-800/50 transition-colors"
+               >
+                 <div className="flex items-center gap-3">
+                    <div className="p-1.5 bg-sky-500/10 rounded-lg text-sky-400">
+                       <HelpCircle size={16} />
+                    </div>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-300">Detailed Calculation Breakdown</span>
+                 </div>
+                 {showRules ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
+               </button>
+               <AnimatePresence>
+                 {showRules && (
+                    <motion.div 
+                        initial={{ height: 0 }} 
+                        animate={{ height: 'auto' }} 
+                        exit={{ height: 0 }}
+                        className="overflow-hidden border-t border-slate-800/50 bg-slate-950/80 p-6 space-y-4"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 bg-slate-900/50 rounded-2xl border border-slate-800 flex flex-col gap-1">
+                                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Raw Probability</span>
+                                <span className="text-sm font-mono text-white">{(result.raw_probability * 100).toFixed(2)}%</span>
+                                <p className="text-[10px] text-slate-400 mt-2 leading-tight">Original output from the AIM-Student v1 model before clinical normalization.</p>
+                            </div>
+                            <div className="p-4 bg-slate-900/50 rounded-2xl border border-slate-800 flex flex-col gap-1">
+                                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Age Correction</span>
+                                <span className="text-sm font-mono text-emerald-400">{result.age_correction?.correction > 0 ? '+' : ''}{(result.age_correction?.correction * 100).toFixed(1)}% ({result.age_correction?.age_baseline?.toFixed(3)} baseline)</span>
+                                <p className="text-[10px] text-slate-400 mt-2 leading-tight">Shifts probability toward your age-matched demographic median (baseline calibration cohorts were age ~58).</p>
+                            </div>
+                            <div className="p-4 bg-slate-900/50 rounded-2xl border border-slate-800 flex flex-col gap-1">
+                                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Window Confidence</span>
+                                <span className="text-sm font-mono text-sky-400">{(result.window_confidence * 100).toFixed(0)}% weight</span>
+                                <p className="text-[10px] text-slate-400 mt-2 leading-tight">Shrinks results toward 0.5 when few temporal windows are available, preventing high-risk flags from single outliers.</p>
+                            </div>
+                            <div className="p-4 bg-slate-900/50 rounded-2xl border border-slate-800 flex flex-col gap-1">
+                                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">OOD Deviation (MAD)</span>
+                                <span className="text-sm font-mono text-amber-300">{result.ood_info?.mad?.toFixed(2)} σ</span>
+                                <p className="text-[10px] text-slate-400 mt-2 leading-tight">How far this session deviates from the research population center. Higher scores indicate atypical typing conditions.</p>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-sky-500/10 border border-sky-500/20 rounded-2xl">
+                            <p className="text-[11px] font-bold text-sky-400 uppercase tracking-widest mb-1">Personal Baseline Status</p>
+                            <p className="text-xs text-slate-200 leading-relaxed">
+                                {result.personal_baseline?.baseline_ready 
+                                    ? `Your motor timing is currently being compared to your personal mean of ${result.personal_baseline.personal_mean.toFixed(3)} (σ=${result.personal_baseline.personal_std.toFixed(3)}). Any drift greater than 2 standard deviations is flagged as a notable change.`
+                                    : `Currently establishing your personal baseline. We need ${(result.personal_baseline?.sessions_needed || 3)} more sessions to create a reliable personalized threshold for you.`
+                                }
+                            </p>
+                        </div>
+                    </motion.div>
+                 )}
+               </AnimatePresence>
             </div>
           </div>
         </section>
@@ -334,11 +419,12 @@ export default function ResultsPage({ result, onRestart }) {
                   <div className="flex items-center gap-2 mt-3">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mr-1">History:</span>
                     {sessionHistory.slice(-3).map((s, i) => {
-                      const elevated = s.probability >= (result.threshold_used || 0.65);
+                      const prob = typeof s.probability === 'number' ? s.probability : (parseFloat(s.probability) || 0);
+                      const elevated = prob >= (result.threshold_used || 0.65);
                       return (
-                        <div key={i} title={`Session ${i+1}: ${(s.probability*100).toFixed(1)}%`}
+                        <div key={i} title={`Session ${i+1}: ${(prob*100).toFixed(1)}%`}
                           className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black border ${elevated ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'}`}>
-                          {(s.probability*100).toFixed(0)}
+                          {(prob*100).toFixed(0)}
                         </div>
                       );
                     })}
@@ -453,16 +539,21 @@ export default function ResultsPage({ result, onRestart }) {
 
               return (
                 <div key={feat.raw_name} className="flex flex-col gap-3 group">
-                  <div className="flex justify-between items-center bg-slate-900/40 p-3 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors">
-                    <span className="text-xs font-bold text-slate-300 uppercase tracking-wider truncate mr-4">
-                      {displayName}
-                    </span>
-                    <div className="flex items-center gap-4 flex-shrink-0">
-                      <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-widest uppercase border ${directionColor}`}>
-                        {feat.direction}
+                  <div className="flex flex-col bg-slate-900/40 p-4 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-black text-white uppercase tracking-wider truncate mr-4">
+                        {displayName}
+                      </span>
+                      <div className="flex items-center gap-4 flex-shrink-0">
+                        <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-widest uppercase border ${directionColor}`}>
+                          {feat.direction}
+                        </div>
+                        <span className="text-sm font-black text-white tabular-nums w-12 text-right">{feat.pct.toFixed(1)}%</span>
                       </div>
-                      <span className="text-sm font-black text-white tabular-nums w-12 text-right">{feat.pct.toFixed(1)}%</span>
                     </div>
+                    <p className="text-[10px] text-slate-500 font-medium leading-tight">
+                      {getLayman(feat.name).meaning}
+                    </p>
                   </div>
                   <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800/50">
                     <motion.div 
@@ -520,9 +611,16 @@ export default function ResultsPage({ result, onRestart }) {
                         const isUp = feat.direction === 'UP';
                         const badgeColor = isUp ? 'text-rose-400 bg-rose-500/10 border-rose-500/20' : 'text-teal-400 bg-teal-500/10 border-teal-500/20';
                         return (
-                          <tr key={feat.raw_name} className="border-b border-slate-800/50 hover:bg-slate-900/30 transition-colors">
+                          <tr key={feat.raw_name} className="border-b border-slate-800/50 hover:bg-slate-900/30 transition-colors group/row">
                             <td className="py-4 pl-4 text-xs font-bold text-slate-500">#{idx + 1}</td>
-                            <td className="py-4 text-xs font-bold text-slate-300 uppercase tracking-widest">{formatName(feat.name)}</td>
+                            <td className="py-4">
+                               <div className="flex flex-col">
+                                  <span className="text-xs font-black text-slate-300 uppercase tracking-widest">{formatName(feat.name)}</span>
+                                  <span className="text-[9px] text-slate-600 font-bold uppercase tracking-tight group-hover/row:text-slate-500 transition-colors">
+                                     {getLayman(feat.name).meaning}
+                                  </span>
+                               </div>
+                            </td>
                             <td className="py-4 text-xs font-mono text-slate-300 text-right pr-6 tabular-nums">{feat.pct.toFixed(2)}%</td>
                             <td className="py-4 text-xs font-mono text-slate-400 text-right pr-6 tabular-nums">{feat.value.toFixed(4)}</td>
                             <td className="py-4 text-center">

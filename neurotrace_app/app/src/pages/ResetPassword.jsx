@@ -14,7 +14,7 @@ function ResetPassword({ onToggleLogin }) {
     setError('');
 
     try {
-      const response = await fetch('http://127.0.0.1:8421/auth/reset-password', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -60,7 +60,7 @@ function ResetPassword({ onToggleLogin }) {
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1 ml-1 uppercase tracking-wider text-[10px]">Verify Email Address</label>
                 <div className="relative">
-                  <input required onChange={(e) => setEmail(e.target.value)} className="block w-full rounded-xl bg-slate-900/50 py-3 pl-11 text-white ring-1 ring-slate-700/50 focus:ring-2 focus:ring-sky-500 transition-all text-sm" placeholder="user@gmail.com" />
+                  <input required onChange={(e) => setEmail(e.target.value)} className="block w-full rounded-xl bg-slate-900/50 py-3 pl-11 text-white ring-1 ring-slate-700/50 focus:ring-2 focus:ring-sky-500 transition-all text-sm" placeholder="email@example.com" />
                   <Mail className="absolute left-4 top-3.5 w-4 h-4 text-slate-500" />
                 </div>
               </div>

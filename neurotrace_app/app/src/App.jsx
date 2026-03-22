@@ -8,7 +8,7 @@ import ResultsPage from './pages/ResultsPage'
 import { HistoryPage } from './pages/HistoryPage'
 
 /**
- * NeuroTrace Premium Dark Theme v3.0
+ * Tremora Premium Dark Theme v3.0
  * Intelligent Routing | AI Results Redirection
  */
 function App() {
@@ -29,7 +29,7 @@ function App() {
     const token = localStorage.getItem('token')
     if (token) {
       try {
-        const response = await fetch('http://127.0.0.1:8421/auth/me', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
         if (response.ok) {
@@ -84,11 +84,11 @@ function App() {
       <nav className="fixed top-0 w-full z-50 bg-[#0a0f1d]/80 backdrop-blur-xl border-b border-slate-800 shadow-2xl">
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4 cursor-pointer" onClick={handleRestart}>
-             <div className="p-3 bg-sky-500 rounded-2xl shadow-lg shadow-sky-500/30 transition-transform active:scale-90">
-                <Brain className="w-6 h-6 text-white" />
+             <div className="transition-transform active:scale-90 flex items-center justify-center pointer-events-auto">
+                <img src="./icon.png" alt="Tremora Logo" className="w-[3.25rem] h-[3.25rem] object-contain" />
               </div>
               <div className="flex flex-col -gap-1">
-                 <span className="text-2xl font-black tracking-tighter text-white uppercase italic">NeuroTrace</span>
+                 <span className="text-2xl font-black tracking-tighter text-white uppercase italic">Tremora</span>
                  <span className="text-[10px] font-black tracking-[0.3em] text-sky-400 uppercase italic">Analysis Hub</span>
               </div>
           </div>

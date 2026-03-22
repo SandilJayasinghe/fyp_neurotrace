@@ -72,3 +72,8 @@ def reset_password(payload: UserResetPassword, session: Session = Depends(get_se
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.get("/sessions")
+def get_my_sessions(current_user: User = Depends(get_current_user)):
+    from db.database import get_sessions_for_user
+    return get_sessions_for_user(str(current_user.id))
