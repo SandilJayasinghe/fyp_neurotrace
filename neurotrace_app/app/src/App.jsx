@@ -5,6 +5,7 @@ import Register from './pages/Register'
 import ResetPassword from './pages/ResetPassword'
 import { ParkinsonScreening } from './pages/ParkinsonScreening'
 import ResultsPage from './pages/ResultsPage'
+import { HistoryPage } from './pages/HistoryPage'
 
 /**
  * NeuroTrace Premium Dark Theme v3.0
@@ -17,7 +18,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   
   // Navigation State
-  const [view, setView] = useState('assessment') // 'assessment' | 'results'
+  const [view, setView] = useState('assessment') // 'assessment' | 'results' | 'history'
   const [lastResult, setLastResult] = useState(null)
 
   useEffect(() => {
@@ -92,6 +93,21 @@ function App() {
               </div>
           </div>
           
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={() => setView('assessment')}
+              className={`text-[10px] font-black tracking-widest uppercase transition-all pb-1 border-b-2 ${view === 'assessment' || view === 'results' ? 'text-sky-400 border-sky-400' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
+            >
+              Screening
+            </button>
+            <button 
+              onClick={() => setView('history')}
+              className={`text-[10px] font-black tracking-widest uppercase transition-all pb-1 border-b-2 ${view === 'history' ? 'text-sky-400 border-sky-400' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
+            >
+              Analysis History
+            </button>
+          </div>
+          
           <div className="flex items-center gap-8">
             <div className="text-right hidden md:block">
                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none opacity-50 italic">Secure Diagnostic Instance</p>
@@ -121,6 +137,14 @@ function App() {
          <div className="relative z-10">
             {view === 'results' ? (
                 <ResultsPage result={lastResult} onRestart={handleRestart} />
+            ) : view === 'history' ? (
+                <HistoryPage 
+                  onBack={() => setView('assessment')} 
+                  onViewResult={(res) => {
+                    setLastResult(res);
+                    setView('results');
+                  }}
+                />
             ) : (
                 <ParkinsonScreening onResult={handleResult} />
             )}

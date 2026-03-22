@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { History, Search, ArrowRight, Trash2, BarChart2, Calendar, Database, FolderOpen } from 'lucide-react';
+import { History, Search, ArrowRight, ArrowLeft, Trash2, BarChart2, Calendar, Database, FolderOpen, FileText } from 'lucide-react';
 import { MetricsVisualizer } from '../components/MetricsVisualizer';
 
-export function HistoryPage() {
+export function HistoryPage({ onBack, onViewResult }) {
   const [sessions, setSessions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -11,8 +11,12 @@ export function HistoryPage() {
 
   const loadSessions = async () => {
     setLoading(true);
-    const data = await window.electron.ipcRenderer.invoke('session:list');
-    setSessions(data);
+    try {
+      const data = await window.electron.ipcRenderer.invoke('session:list');
+      setSessions(data);
+    } catch (e) {
+      console.error('[History] Failed to load:', e);
+    }
     setLoading(false);
   };
 
@@ -21,139 +25,181 @@ export function HistoryPage() {
   }, []);
 
   const deleteSession = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this session?')) return;
+    if (!window.confirm('Delete this clinical record from local storage?')) return;
     const res = await window.electron.ipcRenderer.invoke('session:delete', { session_id: id });
     if (res.success) {
       setSessions(s => s.filter(x => x.session_id !== id));
     }
   };
 
-  const openInFolder = async (id) => {
-    await window.electron.ipcRenderer.invoke('session:openFile', { type: 'json', session_id: id });
+  const openInFolder = async () => {
+    await window.electron.ipcRenderer.invoke('session:openFolder');
+  };
+
+  const handleRowClick = async (session_id) => {
+    const data = await window.electron.ipcRenderer.invoke('session:load', { session_id });
+    if (data) setActiveSession(data);
   };
 
   const filtered = sessions.filter(s => 
-    s.recorded_at.includes(searchTerm) || 
-    s.session_id.includes(searchTerm)
+    s.recorded_at?.toString().toLowerCase().includes(searchTerm.toLowerCase()) || 
+    s.session_id?.toString().toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  /**
+   * Internal helper to prepare stats for MetricsVisualizer 
+   * since older sessions might be missing some summary fields.
+   */
+  const prepareStats = (session) => {
+    if (!session) return null;
+    const keystrokes = session.keystrokes || [];
+    const summary = session.summary || {};
+    
+    const hts = keystrokes.map(k => k.hold_time || 0);
+    const ikis = keystrokes.map(k => k.latency).filter(v => v !== null && v > 0);
+    
+    return {
+        accuracy: summary.accuracy ?? 100,
+        wpm: summary.wpm ?? 0,
+        meanHT: hts.length > 0 ? hts.reduce((a, b) => a + b, 0) / hts.length : 100,
+        meanIKI: ikis.length > 0 ? ikis.reduce((a, b) => a + b, 0) / ikis.length : 150,
+        rhythmStability: 95, // Fallback for historical data
+        total_keystrokes: keystrokes.length
+    };
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 p-10 font-sans">
-      <header className="max-w-6xl mx-auto flex justify-between items-end mb-12">
+    <div className="min-h-screen animate-in fade-in duration-700">
+      <button 
+        onClick={onBack}
+        className="mb-8 flex items-center gap-2 text-slate-500 hover:text-sky-400 font-black uppercase tracking-[0.2em] text-[10px] transition-all group"
+      >
+        <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg group-hover:border-sky-500/30">
+          <ArrowLeft size={14} />
+        </div>
+        Back to Assessment
+      </button>
+
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-             <div className="bg-brand-500 p-2 rounded-xl text-white shadow-lg shadow-brand-500/20">
-                <History size={32} />
-             </div>
-             Screening History
-          </h1>
-          <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2 pl-14 underline decoration-slate-200 underline-offset-4">
-            Localized Biometric Records
+          <div className="flex items-center gap-4 mb-2">
+            <div className="p-3 bg-sky-500/10 border border-sky-500/20 rounded-2xl text-sky-400">
+                <History size={28} />
+            </div>
+            <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">
+              Analysis History
+            </h1>
+          </div>
+          <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[10px] ml-16 italic opacity-70">
+            Localized Biometric Records Matrix
           </p>
         </div>
 
         <div className="flex items-center gap-4">
             <button 
-                onClick={() => window.electron.ipcRenderer.invoke('session:openFolder')}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white border-2 border-slate-100 rounded-xl text-slate-600 font-bold text-xs hover:border-brand-500/20 hover:text-brand-600 transition-all shadow-sm"
+                onClick={openInFolder}
+                className="flex items-center gap-2 px-5 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-400 font-black text-[10px] uppercase tracking-widest hover:border-sky-500/30 hover:text-sky-400 transition-all shadow-xl"
             >
-                <FolderOpen size={16} /> Show All Records
+                <FolderOpen size={14} /> Open Records Folder
             </button>
             <div className="relative w-80">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
                 <input 
                     type="text" 
-                    placeholder="Search by ID or Date..."
+                    placeholder="Search ID or Date..."
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-2xl py-3 pl-12 pr-4 text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
+                    className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl py-3.5 pl-12 pr-5 text-xs font-bold text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500/10 focus:border-sky-500/20 transition-all shadow-inner"
                 />
             </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden">
+      <main>
+        <div className="bg-[#0a0f1d]/60 backdrop-blur-xl rounded-[2rem] border border-slate-800/50 shadow-2xl overflow-hidden min-h-[400px]">
             <table className="w-full border-collapse">
                 <thead>
-                    <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
-                        <th className="px-8 py-6 text-left">Timestamp / ID</th>
-                        <th className="px-8 py-6 text-center">Screening Result</th>
-                        <th className="px-8 py-6 text-center">Accuracy</th>
-                        <th className="px-8 py-6 text-center">WPM</th>
-                        <th className="px-8 py-6 text-center">Strokes</th>
-                        <th className="px-8 py-6 text-right">Action</th>
+                    <tr className="bg-slate-900/30 text-slate-500 text-[9px] font-black uppercase tracking-[0.25em] border-b border-slate-800/50">
+                        <th className="px-8 py-7 text-left">Temporal Metric / Instance ID</th>
+                        <th className="px-8 py-7 text-center">Diagnostic Verdict</th>
+                        <th className="px-8 py-7 text-center">Quality</th>
+                        <th className="px-8 py-7 text-center">Metric (WPM)</th>
+                        <th className="px-8 py-7 text-center">Data Vol</th>
+                        <th className="px-8 py-7 text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-800/30">
                     {loading ? (
-                        <tr><td colSpan="5" className="px-8 py-20 text-center text-slate-400 font-bold italic">Loading records...</td></tr>
+                        <tr><td colSpan="6" className="px-8 py-32 text-center text-slate-500 font-black uppercase tracking-widest text-xs animate-pulse italic">Retrieving secure records...</td></tr>
                     ) : filtered.length === 0 ? (
-                        <tr><td colSpan="5" className="px-8 py-20 text-center text-slate-400 font-bold italic">No sessions found.</td></tr>
+                        <tr><td colSpan="6" className="px-8 py-32 text-center text-slate-600 font-black uppercase tracking-widest text-xs italic opacity-40">No historical sessions found on this node.</td></tr>
                     ) : (
-                        filtered.map(s => (
+                        filtered.map((s, idx) => (
                             <motion.tr 
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                key={s.session_id} 
-                                className="group hover:bg-slate-50/50 transition-colors"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: idx * 0.05 }}
+                                key={s.session_id}
+                                onClick={() => handleRowClick(s.session_id)}
+                                className="group hover:bg-sky-500/[0.02] cursor-pointer transition-colors relative"
                             >
                                 <td className="px-8 py-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-brand-50 rounded-lg text-brand-600">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-slate-600 border border-slate-800 group-hover:border-sky-500/20 group-hover:text-sky-500 transition-all">
                                             <Calendar size={18} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-black text-slate-800">{new Date(s.recorded_at).toLocaleString()}</p>
-                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">ID: {s.session_id}</p>
+                                            <p className="text-sm font-black text-slate-200 tracking-tight">{new Date(s.recorded_at).toLocaleString()}</p>
+                                            <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em] mt-0.5 opacity-50">NODE_ID: {s.session_id}</p>
                                         </div>
                                     </div>
                                 </td>
                                 <td className="px-8 py-6 text-center">
                                     {s.ai_result ? (
-                                        <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter shadow-sm border ${s.ai_result.label === 1 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
-                                            {s.ai_result.label === 1 ? 'PD RISK' : 'HEALTHY'}
-                                        </span>
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span className={`px-4 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${s.ai_result.probability >= (s.ai_result.threshold_used || 0.65) ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                                {s.ai_result.probability >= (s.ai_result.threshold_used || 0.65) ? 'Elevated Signal' : 'Normal Range'}
+                                            </span>
+                                            <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">{(s.ai_result.probability * 100).toFixed(1)}% Score</span>
+                                        </div>
                                     ) : (
-                                        <span className="text-[10px] font-bold text-slate-300 uppercase italic">Not Analyzed</span>
+                                        <span className="text-[9px] font-black text-slate-700 uppercase italic tracking-widest opacity-30 underline decoration-slate-800">Unprocessed</span>
                                     )}
                                 </td>
                                 <td className="px-8 py-6 text-center">
-                                    <span className={`px-3 py-1 rounded-full text-[11px] font-black ${parseFloat(s.accuracy) > 85 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-600'}`}>
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${s.accuracy > 85 ? 'text-sky-400' : 'text-slate-500'}`}>
                                         {s.accuracy}%
                                     </span>
                                 </td>
-                                <td className="px-8 py-6 text-center text-slate-700 font-black text-sm">{s.wpm}</td>
+                                <td className="px-8 py-6 text-center text-white font-black text-base tracking-tighter italic">{s.wpm}</td>
                                 <td className="px-8 py-6 text-center">
-                                    <div className="flex items-center justify-center gap-2 text-slate-400 font-bold text-[10px] uppercase">
-                                        <Database size={12} /> {s.total_keystrokes}
+                                    <div className="flex items-center justify-center gap-2 text-slate-600 font-bold text-[10px] uppercase tracking-widest">
+                                        <Database size={11} className="opacity-50" /> {s.total_keystrokes}
                                     </div>
                                 </td>
-                                <td className="px-8 py-6 text-right">
-                                    <div className="flex justify-end gap-2">
+                                <td className="px-8 py-6 text-right relative z-20">
+                                    <div className="flex justify-end gap-2 pr-2">
                                         <button 
-                                            onClick={async () => {
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
                                                 const data = await window.electron.ipcRenderer.invoke('session:load', { session_id: s.session_id });
-                                                setActiveSession(data);
+                                                if (data?.ai_result && onViewResult) {
+                                                  onViewResult(data.ai_result);
+                                                }
                                             }}
-                                            className="p-2.5 text-slate-400 hover:text-brand-600 hover:bg-white rounded-xl transition-all border border-transparent hover:border-slate-200 shadow-sm shadow-slate-100"
+                                            className="p-3 bg-slate-900 border border-slate-800 text-slate-500 hover:text-sky-400 hover:border-sky-500/30 rounded-xl transition-all shadow-lg"
+                                            title="View Diagnostic Report"
                                         >
-                                            <BarChart2 size={18} />
+                                            <FileText size={16} />
                                         </button>
                                         <button 
-                                            onClick={() => openInFolder(s.session_id)}
-                                            className="p-2.5 text-slate-400 hover:text-brand-600 hover:bg-white rounded-xl transition-all border border-transparent hover:border-slate-200"
-                                            title="Show in Folder"
+                                            onClick={(e) => { e.stopPropagation(); deleteSession(s.session_id); }}
+                                            className="p-3 bg-slate-900 border border-slate-800 text-slate-500 hover:text-rose-400 hover:border-rose-500/30 rounded-xl transition-all shadow-lg"
+                                            title="Purge Record"
                                         >
-                                            <FolderOpen size={18} />
+                                            <Trash2 size={16} />
                                         </button>
-                                        <button 
-                                            onClick={() => deleteSession(s.session_id)}
-                                            className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                        <div className="w-10 flex justify-center items-center text-slate-200 group-hover:text-brand-500 transition-colors">
+                                        <div className="w-8 flex justify-center items-center text-slate-800 group-hover:text-sky-500 group-hover:translate-x-1 transition-all">
                                             <ArrowRight size={18} />
                                         </div>
                                     </div>
@@ -169,16 +215,12 @@ export function HistoryPage() {
       <AnimatePresence>
         {activeSession && (
           <MetricsVisualizer 
-            session={activeSession} 
+            keystrokes={activeSession.keystrokes} 
+            stats={prepareStats(activeSession)}
             onClose={() => setActiveSession(null)} 
           />
         )}
       </AnimatePresence>
-      
-      {/* Background Decor */}
-      <div className="fixed top-0 right-0 w-full h-full -z-10 pointer-events-none opacity-[0.03]">
-         <div className="absolute top-1/4 right-1/4 w-[600px] h-[600px] bg-indigo-500 rounded-full blur-[140px]" />
-      </div>
     </div>
   );
 }

@@ -122,6 +122,9 @@ export class KeystrokeCaptureService {
     if (this.isCapturing) return;
     try {
         console.log('[Session] Starting hardware listener...');
+        // Reset timing state so first keystroke has clean flight/latency baseline
+        this.lastKeyup = null;
+        this.lastKeydown_t = null;
         uIOhook.start();
         this.isCapturing = true;
         console.log('[Session] Hardware listener ACTIVE.');

@@ -14,10 +14,12 @@ import {
   History,
   CheckCircle2,
   XCircle,
-  HelpCircle
+  HelpCircle,
+  ArrowLeft
 } from 'lucide-react';
 import { RiskGauge } from '../components/Parkinson/RiskGauge';
 import { addSessionResult, getSessionHistory, getMultiSessionVerdict } from '../hooks/useSessionHistory';
+import { generateReportHTML } from '../utils/reportGenerator';
 
 export default function ResultsPage({ result, onRestart }) {
   const [uploading, setUploading] = useState(false);
@@ -33,6 +35,23 @@ export default function ResultsPage({ result, onRestart }) {
   const [showFeatures, setShowFeatures] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [sessionHistory, setSessionHistory] = useState([]);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadReport = async () => {
+    if (!window.electron?.ipcRenderer) return;
+    setIsDownloading(true);
+    try {
+      const html = generateReportHTML(result);
+      const response = await window.electron.ipcRenderer.invoke('report:savePDF', html);
+      if (response?.success) {
+        console.log('[Report] Saved to:', response.filePath);
+      }
+    } catch (e) {
+      console.error('[Report] Failed to save PDF:', e);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   useEffect(() => {
     if (result) {
@@ -117,6 +136,16 @@ export default function ResultsPage({ result, onRestart }) {
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-6 animate-in fade-in duration-1000 selection:bg-sky-500/20 text-slate-200">
+      <button 
+        onClick={onRestart}
+        className="mb-8 flex items-center gap-2 text-slate-500 hover:text-sky-400 font-black uppercase tracking-[0.2em] text-[10px] transition-all group"
+      >
+        <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg group-hover:border-sky-500/30">
+          <ArrowLeft size={14} />
+        </div>
+        Back to Assessment
+      </button>
+
       {/* UPLOAD/IMPORT RAW KEYSTROKES */}
       <div className="mb-6 flex flex-wrap gap-4 items-center">
         <button
@@ -161,9 +190,12 @@ export default function ResultsPage({ result, onRestart }) {
           <span className="text-sm font-bold text-slate-400 mr-2 px-4 py-2 bg-slate-950 rounded-xl border border-slate-800 hidden sm:block">user@neurotrace.dev</span>
           <button 
             type="button"
-            className="px-6 py-3 bg-slate-800 border-slate-700 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-slate-700 transition-colors uppercase tracking-widest text-[10px]"
+            onClick={handleDownloadReport}
+            disabled={isDownloading}
+            className="px-6 py-3 bg-slate-800 border-slate-700 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-slate-700 transition-colors uppercase tracking-widest text-[10px] disabled:opacity-50 disabled:cursor-wait"
           >
-            <FileText size={14} /> Download Report
+            <FileText size={14} />
+            {isDownloading ? 'Generating...' : 'Download Report'}
           </button>
           <button 
             onClick={onRestart}

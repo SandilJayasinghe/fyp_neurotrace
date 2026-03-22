@@ -37,7 +37,7 @@ for m_name in ['__main__', 'main', 'uvicorn.workers']:
 # --------------------------------------
 
 # Local imports
-from schemas import PredictRequest, PredictResponse
+from schemas import PredictRequest, PredictResponse, FeatureDetail
 from services import feature_engineering as fe
 
 # Auth & Database Imports (Restored for application functionality)
@@ -181,10 +181,12 @@ def generate_verdict(
     quality: dict,
     polling_hz: int = 125
 ) -> str:
-    if probability < 0.25:
-        part_a = "Your keystroke timing patterns show no significant markers associated with motor control changes."
-    elif probability < 0.40:
-        part_a = "Your keystroke timing patterns show mild variation that is within the normal range for most people."
+    if probability < 0.15:
+        part_a = "Positive Result: Your motor timing is optimal. No parkinsonian markers were detected in this session."
+    elif probability < 0.30:
+        part_a = "Normal range. Your keystroke timing patterns are consistent with healthy motor control."
+    elif probability < 0.45:
+        part_a = "Mild variation detected. While within the common range for healthy individuals, factors like fatigue or caffeine can influence this score."
     elif probability < threshold:
         part_a = "Your keystroke timing patterns show some variation that warrants monitoring over time."
     elif probability < 0.65:
@@ -195,7 +197,10 @@ def generate_verdict(
         part_a = "Your keystroke timing patterns show strong irregularities in motor timing that strongly resemble patterns seen in the training data."
 
     if confidence_band == "Low":
-        part_b = "The result sits close to the decision boundary, meaning a repeat test is recommended before drawing any conclusions."
+        part_b = (
+            "The result was computed with limited data samples. For a 'Gold Status' verified result, "
+            "we recommend completing at least 500 keystrokes or using the specialized Tappy Mode."
+        )
     elif confidence_band == "Moderate":
         part_b = "The result was produced with moderate confidence."
     else:
@@ -277,166 +282,154 @@ def predict(request: PredictRequest):
         if len(request.keystrokes) < 150:
             raise HTTPException(status_code=422, detail="Minimum 150 keystrokes required.")
         
-        if AIM_MODEL is None:
+        # Hydration Guard
+        if AIM_MODEL is None or AIM_BUNDLE is None or PREP is None:
             raise HTTPException(status_code=503, detail="AIM Model offline.")
-
+            
+        # Use locally scoped references to avoid NoneType lints
+        model: Any = AIM_MODEL
+        bundle: dict = AIM_BUNDLE
+        prep: dict = PREP
 
         # 1. Extract keyboard info from request
         polling_hz = request.keyboard_polling_hz or 125
         q_ms = 1000.0 / float(polling_hz)
 
-        # 2. Build Features (polling-aware + motor-clean filtering)
-
+        # 2. Build Features
         ks_dicts = [k.model_dump() for k in request.keystrokes]
-        raw_ks_count = len(ks_dicts)
-        print("[DEBUG] Number of raw keystrokes:", raw_ks_count)
-        # Report cleaning stats (filter runs inside build_feature_matrix too)
         cleaned_ks = fe.motor_clean_filter(ks_dicts)
         cleaned_count = len(cleaned_ks)
-        removed_count = raw_ks_count - cleaned_ks.__len__()
-        cleaning_pct = round((removed_count / max(raw_ks_count, 1)) * 100, 1)
-        print(f"[DEBUG] Cleaned keystrokes: {cleaned_count}, Removed: {removed_count}, Cleaning %: {cleaning_pct}")
+        
+        # Use FeatureExtractor (Class 4)
+        extractor = fe.FeatureExtractor(prep)
+        X_raw = extractor.getTemporalFeatures(
+            ht=[k['hold_time'] for k in cleaned_ks],
+            ft=[k.get('flight_time') or 0.0 for k in cleaned_ks],
+            lat=[k.get('latency') or 0.0 for k in cleaned_ks],
+            key=[k['keyId'] for k in cleaned_ks]
+        )
+        if X_raw is None or len(X_raw) == 0:
+            raise HTTPException(status_code=422, detail="Feature extraction failed. Insufficient clean data.")
 
-        X_raw = fe.build_feature_matrix(ks_dicts, polling_hz=polling_hz)
-        print("[DEBUG] X_raw shape:", None if X_raw is None else X_raw.shape)
-        if X_raw is None:
-            print("[DEBUG] Feature extraction failed — only", cleaned_count, "clean keystrokes after filtering", removed_count, "corrections.")
-            raise HTTPException(status_code=422, detail=f"Feature extraction failed — only {cleaned_count} clean keystrokes after filtering {removed_count} corrections. Type more without corrections, or use Tappy mode.")
+        # --- TECHNIQUE 10: BIGRAM ALIGNMENT ---
+        alignment_score = fe.get_bigram_alignment_score(cleaned_ks)
 
-        # 3. Preprocess (polling-aware scale + select)
-        X_scaled = fe.preprocess(X_raw, PREP, polling_hz=polling_hz)
-        print("[DEBUG] X_scaled shape:", X_scaled.shape)
-        print("[DEBUG] First 10 scaled features:", X_scaled[0, :10])
+        # --- TECHNIQUE 7: SPEED NORMALISATION ---
+        X_raw = fe.apply_speed_normalisation(cleaned_ks, X_raw, bundle.get('feature_names_raw', []))
+
+        # 3. Preprocess
+        X_scaled = fe.preprocess(X_raw, prep, polling_hz=polling_hz)
+        n_windows_used = X_raw.shape[0]
+        
+        feature_names = bundle.get('feature_names', [])
+        # Apply BIGRAM downweighting if alignment is low (< 0.4)
+        if alignment_score < 0.4:
+            bigram_downweight = 0.6
+            for i, name in enumerate(feature_names):
+                if 'bg' in name.lower(): X_scaled[0, i] *= bigram_downweight
 
         # 3. Predict (AIM-Student-v1)
-        res = AIM_MODEL.predict(X_scaled)
-        prob = res.probability_pd
+        res = model.predict(X_scaled)
+        prob = float(res.probability_pd)
 
-        # 4. Compute confidence_band
-        if prob < 0.25 or prob > 0.75: band = "High"
-        elif prob < 0.35 or prob > 0.65: band = "Moderate"
+        # --- TECHNIQUE 9: OOD SCORING ---
+        def compute_ood_score(X_raw_data, scaler):
+            center = scaler.center_
+            scale = scaler.scale_
+            z = (X_raw_data[0] - center) / (scale + 1e-8)
+            mad = float(np.median(np.abs(z)))
+            grade = "In-Distribution"
+            if mad > 2.0: grade = "Out-of-Distribution"
+            elif mad > 1.0: grade = "Marginal"
+            return {"grade": grade, "mad": mad}
+
+        ood_info = compute_ood_score(X_raw, prep['scaler'])
+
+        # 4. Calibration
+        import math
+        raw_log_odds = math.log(max(float(prob), 1e-6) / max(1.0 - float(prob), 1e-6))
+        cal_log_odds = raw_log_odds * 0.70 - 1.50
+        if polling_hz < 250: cal_log_odds *= 0.45 
+        elif polling_hz < 500: cal_log_odds *= 0.75
+        prob = 1.0 / (1.0 + math.exp(-cal_log_odds))
+
+        # --- TECHNIQUE 8: WINDOW CONFIDENCE ---
+        window_confidence = min(float(n_windows_used) / 10.0, 1.0)
+        prob = prob * window_confidence + 0.5 * (1.0 - window_confidence)
+
+        # --- TECHNIQUE 6: LONGITUDINAL ---
+        l_mean = prob
+        delta = 0.0
+        trend = 0.0
+        if request.historyProbs:
+            history = request.historyProbs[-4:] + [prob]
+            l_mean = float(np.mean(history))
+            delta = prob - float(np.mean(request.historyProbs))
+            if len(history) >= 2:
+                trend = float(np.polyfit(np.arange(len(history)), history, 1)[0])
+
+        display_prob = l_mean if len(request.historyProbs) >= 2 else prob
+        if display_prob < 0.25 or display_prob > 0.75: band = "High"
+        elif display_prob < 0.35 or display_prob > 0.65: band = "Moderate"
         else: band = "Low"
 
         # 5. Build features breakdown
-        feature_importances = AIM_BUNDLE.get('feature_importances', [])
-        feature_names = AIM_BUNDLE.get('feature_names', [])
+        feature_importances = bundle.get('feature_importances', [])
         sum_imp = float(sum(feature_importances)) if sum(feature_importances) > 0 else 1.0
-        
         all_features = []
         for i in range(len(feature_names)):
-            r_name = feature_names[i]
-            d_name = r_name.replace('_', ' ').strip().upper()
-            imp = float(feature_importances[i])
-            pct = (imp / sum_imp) * 100.0
-            val = float(X_scaled[0, i])
-            all_features.append({
-                "name": d_name,
-                "raw_name": r_name,
-                "importance": imp,
-                "pct": pct,
-                "value": val,
-                "direction": "UP" if val >= 0 else "DOWN",
-            })
-        # Ensure required variables are always defined after all_features is created
+            r_name = feature_names[i]; d_name = r_name.replace('_', ' ').strip().upper()
+            imp = float(feature_importances[i]); pct = (imp / sum_imp) * 100.0; val = float(X_scaled[0, i])
+            all_features.append({"name": d_name, "raw_name": r_name, "importance": imp, "pct": pct, "value": val, "direction": "UP" if val >= 0 else "DOWN"})
         top_feats = all_features[:5]
-        scorecard_rules = []
-        debug_logs = []
-        left_chars = set("12345qwertasdfgzxcvbQWERTASDFGZXCVB")
-        right_chars = set("67890^&*()yuiophjklnmYUIOPHJKLNM")
-        left_count = sum(1 for k in request.keystrokes if str(k.model_dump().get('key', '')) in left_chars)
-        right_count = sum(1 for k in request.keystrokes if str(k.model_dump().get('key', '')) in right_chars)
-        lr_ratio = left_count / max(right_count, 1)
-
-        threshold_used = 0.65   # Raised from 0.5 — reduces false positives from free-text typing
-        session_quality = compute_session_quality(
-            ks_dicts,
-            polling_hz=polling_hz,
-            detection_confidence=request.detection_confidence
-        )
         
+        left_chars = set("`12345qwertasdfgzxcvbQWERTASDFGZXCVB")
+        left_count = sum(1 for k in request.keystrokeEvents if str(k.keyId) in left_chars)
+        right_count = sum(1 for k in request.keystrokeEvents if str(k.keyId) not in left_chars)
+        lr_ratio = left_count / max(right_count, 1)
+        threshold_used = 0.65 if n_windows_used >= 15 else (0.72 if n_windows_used >= 8 else 0.80)
 
-        # --- NEW RELIABILITY WEIGHTING LOGIC (per user instructions) ---
-        def is_unreliable(feature_name, polling_hz):
-            # Features with these substrings are unreliable below 1000Hz
-            unreliable_keywords = ["dfa", "pentropy", "tremor", "entropy"]
-            if polling_hz >= 1000:
-                return False
-            fname = feature_name.lower()
-            return any(kw in fname for kw in unreliable_keywords)
-
-        unreliable_raw = [name for name in feature_names if is_unreliable(name, polling_hz)]
-        unreliable_display = sorted(set([
-            n.replace('_', ' ').strip().upper()[:30] for n in unreliable_raw
-        ]))
-
-        if polling_hz >= 1000:
-            reliability_note = "All features are fully reliable at 1000Hz polling."
-        elif polling_hz >= 500:
-            reliability_note = "Most features are reliable. Minor downweighting applied to entropy, DFA, and tremor features."
-        elif polling_hz >= 250:
-            reliability_note = "Moderate downweighting applied to entropy, DFA, and tremor features. Consider using a higher polling rate keyboard."
-        else:
-            reliability_note = (
-                f"Standard keyboard detected ({polling_hz}Hz). Entropy, DFA, and tremor features have been "
-                "downweighted. Core timing features (hold time, IKI, flight time) remain fully reliable. "
-                "A gaming keyboard with 1000Hz polling would significantly improve result accuracy."
-            )
-
-        keyboard_info_dict = {
-            'polling_hz':           polling_hz,
-            'keyboard_name':        request.keyboard_name,
-            'is_gaming_keyboard':   polling_hz >= 500,
-            'quantisation_warning': request.quantisation_warning,
-            'detection_method':     request.detection_method,
-            'detection_confidence': request.detection_confidence,
-            'min_measurable_ht_ms': q_ms,
-        }
+        # Reliability Note
+        if polling_hz >= 1000: reliability_note = "All features are fully reliable."
+        elif polling_hz >= 500: reliability_note = "High reliability. Small resolution dampening applied."
+        else: reliability_note = f"Standard {polling_hz}Hz polling detected. High-speed rhythm features downweighted."
 
         verdict = generate_verdict(
-            probability=prob,
+            probability=display_prob,
             confidence_band=band,
             top5=top_feats,
-            n_keystrokes=len(request.keystrokes),
+            n_keystrokes=cleaned_count,
             lr_ratio=lr_ratio,
             threshold=threshold_used,
-            quality=session_quality,
+            quality=0.8,
             polling_hz=polling_hz
         )
-        
-        aim_metrics = METADATA.get('metrics', {})
+        aim_metrics = METADATA.get('metrics', {}) if METADATA else {}
 
-        return {
-            "probability": prob,
-            "label": res.label_id,
-            "label_text": res.label,
-            "threshold_used": threshold_used,
-            "confidence": abs(prob - 0.5) * 2,
-            "confidence_band": band,
-            "n_keystrokes": len(request.keystrokes),
-            "n_windows": int(X_raw[0, -1]),
-            "left_count": left_count,
-            "right_count": right_count,
-            "lr_ratio": lr_ratio,
-            "top5_features": top_feats,
-            "all_features": all_features,
-            "scorecard_rules": scorecard_rules,
-            "session_quality": session_quality,
-            "signal_cleaning": {
-                "raw_keystrokes": raw_ks_count,
-                "clean_keystrokes": cleaned_count,
-                "removed_keystrokes": removed_count,
-                "correction_rate_pct": cleaning_pct,
-            },
-            "keyboard_info":   keyboard_info_dict,
-            "unreliable_features": unreliable_display,
-            "reliability_note":    reliability_note,
-            "verdict": verdict,
-            "aim_auc": aim_metrics.get('auc', 0.84),
-            "aim_sensitivity": aim_metrics.get('sensitivity', 0.8),
-            "aim_specificity": aim_metrics.get('specificity', 0.8),
-            "disclaimer": "This result is a statistical screening signal only. It is not a clinical diagnosis. The model was trained on a research dataset and has not been clinically validated. Please consult a neurologist for any medical evaluation.",
-            "debug_logs": debug_logs
-        }
+        return PredictResponse(
+            sessionId=str(request.session_id),
+            userId=request.userId,
+            riskLabel=prob,
+            label=int(res.label_id),
+            label_text=str(res.label),
+            threshold_used=threshold_used,
+            confidence=abs(display_prob - 0.5) * 2,
+            confidence_band=band,
+            n_keystrokes=cleaned_count,
+            n_windows=n_windows_used,
+            topFactors=[f['name'] for f in top_feats],
+            all_features=[FeatureDetail(**f) for f in all_features],
+            verdict=verdict,
+            aim_auc=float(aim_metrics.get('auc', 0.72)),
+            disclaimer=f"Grade: {ood_info['grade']}. {reliability_note}",
+            rawVector=X_raw[0].tolist() if X_raw is not None else [],
+            scaledVector=X_scaled[0].tolist(),
+            windowConfidence=window_confidence,
+            oodGrade=ood_info['grade'],
+            longitudinal_mean=l_mean,
+            delta_from_baseline=delta,
+            trend_slope=trend
+        )
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -446,11 +439,12 @@ def predict(request: PredictRequest):
 
 @app.post("/features")
 def features(request: PredictRequest):
+    if PREP is None: raise HTTPException(status_code=503, detail="Offline")
     ks_dicts = [k.model_dump() for k in request.keystrokes]
     X_raw = fe.build_feature_matrix(ks_dicts)
-    if X_raw is None:
-        raise HTTPException(status_code=422, detail="Insufficient data.")
+    if X_raw is None: raise HTTPException(status_code=422, detail="Insufficient data.")
     X_scaled = fe.preprocess(X_raw, PREP)
+    return {"raw": X_raw[0].tolist(), "scaled": X_scaled[0].tolist()}
     
     return {
         "raw_features_526": X_raw[0].tolist(),

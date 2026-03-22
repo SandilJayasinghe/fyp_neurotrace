@@ -17,7 +17,8 @@ contextBridge.exposeInMainWorld('electron', {
                 'buffer:getSnapshot', 'buffer:getCount', 'buffer:clear',
                 'analysis:save', 'analysis:list',
                 'session:save', 'session:load', 'session:list', 
-                'session:delete', 'session:openFile', 'keyboard:getInfo'
+                'session:delete', 'session:openFile', 'keyboard:getInfo',
+                'report:savePDF'
             ];
             if (validChannels.includes(channel)) {
                 return ipcRenderer.invoke(channel, data);
