@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -24,15 +26,37 @@ jobs:
           cache: 'npm'
           cache-dependency-path: neurotrace_app/app/package-lock.json
 
-      - name: Validate tag matches package version
-        if: github.ref_type == 'tag'
+      - name: Resolve release tag from package version
+        id: version
         shell: pwsh
         run: |
           $pkg = Get-Content "neurotrace_app/app/package.json" -Raw | ConvertFrom-Json
           $expectedTag = "v$($pkg.version)"
-          $actualTag = "${{ github.ref_name }}"
-          if ($actualTag -ne $expectedTag) {
-            throw "Tag '$actualTag' does not match package.json version tag '$expectedTag'."
+          $versionNumber = "$($pkg.version)"
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $actualTag = "${{ github.ref_name }}"
+            if ($actualTag -ne $expectedTag) {
+              throw "Tag '$actualTag' does not match package.json version tag '$expectedTag'."
+            }
+            $releaseTag = $actualTag
+          } else {
+            $releaseTag = $expectedTag
+          }
+          "release_tag=$releaseTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "version_number=$versionNumber" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Create and push tag (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          $releaseTag = "${{ steps.version.outputs.release_tag }}"
+          git fetch --tags
+          $exists = git tag --list $releaseTag
+          if (-not $exists) {
+            git tag $releaseTag
+            git push origin $releaseTag
           }
 
       - name: Install dependencies
@@ -45,23 +69,42 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Rename installer to tremora-version
+        id: rename
+        shell: pwsh
+        run: |
+          $dist = "neurotrace_app/app/dist"
+          $version = "${{ steps.version.outputs.version_number }}"
+          $targetExe = Join-Path $dist "tremora-$version.exe"
+
+          $installer = Get-ChildItem $dist -Filter "*.exe" |
+            Where-Object { $_.Name -notmatch "unins" } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+          if (-not $installer) {
+            throw "No installer .exe found in $dist"
+          }
+
+          Move-Item -Path $installer.FullName -Destination $targetExe -Force
+
+          "renamed_exe=$targetExe" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
       - name: Upload Windows binaries artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tremora-windows-binaries-${{ github.run_number }}
+          name: tremora-windows-binaries-${{ steps.version.outputs.release_tag }}
           path: |
-            neurotrace_app/app/dist/*.exe
-            neurotrace_app/app/dist/*.exe.blockmap
+            ${{ steps.rename.outputs.renamed_exe }}
           if-no-files-found: error
 
       - name: Create GitHub Release (Windows binaries only)
-        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Tremora Windows ${{ github.ref_name }}
+          tag_name: ${{ steps.version.outputs.release_tag }}
+          name: Tremora Windows ${{ steps.version.outputs.release_tag }}
           generate_release_notes: true
+          make_latest: true
           files: |
-            neurotrace_app/app/dist/*.exe
-            neurotrace_app/app/dist/*.exe.blockmap
+            ${{ steps.rename.outputs.renamed_exe }}
 
