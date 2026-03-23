@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Loader2, ArrowLeft } from 'lucide-react';
+import { apiUrl } from '../config/api';
 
 function ResetPassword({ onToggleLogin }) {
   const [email, setEmail] = useState('');
@@ -14,7 +15,7 @@ function ResetPassword({ onToggleLogin }) {
     setError('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/reset-password`, {
+      const response = await fetch(apiUrl('/auth/reset-password'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

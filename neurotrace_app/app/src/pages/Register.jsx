@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Brain, Lock, Mail, User, Calendar, Loader2 } from 'lucide-react';
+import { apiUrl } from '../config/api';
 
 function Register({ onToggleLogin }) {
   const [formData, setFormData] = useState({
@@ -29,7 +30,7 @@ function Register({ onToggleLogin }) {
         country: formData.country || 'Not specified'
       };
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
+      const response = await fetch(apiUrl('/auth/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

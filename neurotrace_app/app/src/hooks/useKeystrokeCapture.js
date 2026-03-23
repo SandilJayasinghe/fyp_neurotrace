@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-
-const API = import.meta.env.VITE_API_URL;
+import { apiUrl } from '../config/api';
 
 export function useKeystrokeCapture() {
   const [state, setState] = useState('IDLE'); // IDLE|WARMUP|ACTIVE|PROCESSING|RESULTS
@@ -56,7 +55,7 @@ export function useKeystrokeCapture() {
     window.electron?.ipcRenderer.invoke('capture:stop');
     const buffer = await window.electron?.ipcRenderer.invoke('capture:getBuffer');
     try {
-      const { data } = await axios.post(`${API}/predict`, { keystrokes: buffer });
+      const { data } = await axios.post(apiUrl('/predict'), { keystrokes: buffer });
       setResult(data);
       setState('RESULTS');
     } catch (err) {

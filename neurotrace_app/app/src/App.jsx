@@ -6,6 +6,7 @@ import ResetPassword from './pages/ResetPassword'
 import { ParkinsonScreening } from './pages/ParkinsonScreening'
 import ResultsPage from './pages/ResultsPage'
 import { HistoryPage } from './pages/HistoryPage'
+import { apiUrl } from './config/api'
 
 /**
  * Tremora Premium Dark Theme v3.0
@@ -29,7 +30,7 @@ function App() {
     const token = localStorage.getItem('token')
     if (token) {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+        const response = await fetch(apiUrl('/auth/me'), {
           headers: { 'Authorization': `Bearer ${token}` }
         })
         if (response.ok) {
