@@ -1,0 +1,28 @@
+[Unit]
+Description=NeuroTrace FastAPI Backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tremora
+WorkingDirectory=/home/tremora/fyp_neurotrace/neurotrace_app/backend/
+Environment=PYTHONUNBUFFERED=1
+Environment=VIRTUAL_ENV=/home/tremora/fyp_neurotrace/neurotrace_app/backend/venv
+Environment=PATH=/home/tremora/fyp_neurotrace/neurotrace_app/backend/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+ExecStartPre=/usr/bin/python3 -m venv /home/tremora/fyp_neurotrace/neurotrace_app/backend/venv
+ExecStartPre=/home/tremora/fyp_neurotrace/neurotrace_app/backend/venv/bin/pip install --upgrade pip
+ExecStartPre=/home/tremora/fyp_neurotrace/neurotrace_app/backend/venv/bin/pip install -r /home/tremora/fyp_neurotrace/neurotrace_app/backend/requirements.txt
+ExecStart=/home/tremora/fyp_neurotrace/neurotrace_app/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+Restart=always
+RestartSec=5
+TimeoutStartSec=120
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=neurotrace-backend
+
+[Install]
+WantedBy=multi-user.target
