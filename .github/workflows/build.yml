@@ -1,0 +1,46 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: neurotrace_app/app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: neurotrace_app/app
+        run: npm ci || exit 1
+
+      - name: Build Electron app
+        working-directory: neurotrace_app/app
+        run: npm run electron:build || exit 1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ELECTRON_BUILDER_BINARIES_DIR: ./dist
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            neurotrace_app/app/dist/*.exe
+            neurotrace_app/app/dist/*.zip
+            neurotrace_app/app/dist/*.msi
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
