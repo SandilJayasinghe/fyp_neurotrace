@@ -1,12 +1,13 @@
-name: Build and Release
+name: Build Windows Release
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-windows:
@@ -23,24 +24,42 @@ jobs:
           cache: 'npm'
           cache-dependency-path: neurotrace_app/app/package-lock.json
 
+      - name: Validate tag matches package version
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        run: |
+          $pkg = Get-Content "neurotrace_app/app/package.json" -Raw | ConvertFrom-Json
+          $expectedTag = "v$($pkg.version)"
+          $actualTag = "${{ github.ref_name }}"
+          if ($actualTag -ne $expectedTag) {
+            throw "Tag '$actualTag' does not match package.json version tag '$expectedTag'."
+          }
+
       - name: Install dependencies
         working-directory: neurotrace_app/app
-        run: npm ci || exit 1
+        run: npm ci
 
       - name: Build Electron app
         working-directory: neurotrace_app/app
-        run: npm run electron:build || exit 1
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ELECTRON_BUILDER_BINARIES_DIR: ./dist
+        run: npm run electron:build
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Upload Windows binaries artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: tremora-windows-binaries-${{ github.run_number }}
+          path: |
+            neurotrace_app/app/dist/*.exe
+            neurotrace_app/app/dist/*.exe.blockmap
+          if-no-files-found: error
+
+      - name: Create GitHub Release (Windows binaries only)
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Tremora Windows ${{ github.ref_name }}
+          generate_release_notes: true
           files: |
             neurotrace_app/app/dist/*.exe
-            neurotrace_app/app/dist/*.zip
-            neurotrace_app/app/dist/*.msi
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            neurotrace_app/app/dist/*.exe.blockmap
+

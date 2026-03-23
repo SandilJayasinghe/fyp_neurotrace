@@ -33,9 +33,12 @@ function createWindow() {
     backgroundColor: '#ffffff'
   });
 
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+  });
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
-    mainWindow.once('ready-to-show', () => mainWindow.show());
   } else {
     mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   }
