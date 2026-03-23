@@ -41,7 +41,9 @@ jobs:
 
       - name: Build Electron app
         working-directory: neurotrace_app/app
-        run: npm run electron:build
+        run: npm run electron:build -- --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Windows binaries artifact
         uses: actions/upload-artifact@v4
