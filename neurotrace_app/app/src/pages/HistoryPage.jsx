@@ -109,7 +109,7 @@ export function HistoryPage({ onBack, onViewResult }) {
                     placeholder="Search ID or Date..."
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-5 text-xs font-bold text-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-orange-500/30 transition-all shadow-sm"
+                    className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-5 text-xs font-bold text-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/10 focus:border-sky-500/30 transition-all shadow-sm"
                 />
             </div>
         </div>

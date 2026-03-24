@@ -61,14 +61,14 @@ function ResetPassword({ onToggleLogin }) {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1 ml-1 uppercase tracking-wider text-[10px]">Verify Email Address</label>
                 <div className="relative">
-                  <input required onChange={(e) => setEmail(e.target.value)} className="block w-full rounded-xl bg-slate-50 py-3 pl-11 text-slate-900 ring-1 ring-slate-200 focus:ring-2 focus:ring-orange-500 transition-all text-sm" placeholder="email@example.com" />
+                  <input required onChange={(e) => setEmail(e.target.value)} className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-all text-sm" placeholder="email@example.com" />
                   <Mail className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1 ml-1 uppercase tracking-wider text-[10px]">New Secure Password</label>
                 <div className="relative">
-                  <input type="password" required onChange={(e) => setNewPassword(e.target.value)} className="block w-full rounded-xl bg-slate-50 py-3 pl-11 text-slate-900 ring-1 ring-slate-200 focus:ring-2 focus:ring-orange-500 transition-all text-sm" placeholder="••••••••" />
+                  <input type="password" required onChange={(e) => setNewPassword(e.target.value)} className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-all text-sm" placeholder="••••••••" />
                   <Lock className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
                 </div>
               </div>

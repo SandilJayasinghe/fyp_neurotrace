@@ -103,14 +103,14 @@ function Register({ onToggleLogin }) {
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1 ml-1 uppercase tracking-wider">Full Name</label>
                   <div className="relative">
-                    <input name="name" required onChange={handleChange} value={formData.name} className="block w-full rounded-xl bg-slate-50 py-3 pl-11 text-slate-900 ring-1 ring-slate-200 focus:ring-2 focus:ring-orange-500 transition-all text-sm" placeholder="John Doe" />
+                    <input name="name" required onChange={handleChange} value={formData.name} className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-all text-sm" placeholder="John Doe" />
                     <User className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1 ml-1 uppercase tracking-wider">Email Address</label>
                   <div className="relative">
-                    <input name="email" type="email" required onChange={handleChange} value={formData.email} className="block w-full rounded-xl bg-slate-50 py-3 pl-11 text-slate-900 ring-1 ring-slate-200 focus:ring-2 focus:ring-orange-500 transition-all text-sm" placeholder="john@example.com" />
+                    <input name="email" type="email" required onChange={handleChange} value={formData.email} className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-all text-sm" placeholder="john@example.com" />
                     <Mail className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
                   </div>
                 </div>
@@ -119,7 +119,7 @@ function Register({ onToggleLogin }) {
               <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1 ml-1 uppercase tracking-wider">Secure Password</label>
                 <div className="relative">
-                  <input name="password" type="password" required onChange={handleChange} value={formData.password} className="block w-full rounded-xl bg-slate-50 py-3 pl-11 text-slate-900 ring-1 ring-slate-200 focus:ring-2 focus:ring-orange-500 transition-all text-sm" placeholder="••••••••" />
+                  <input name="password" type="password" required onChange={handleChange} value={formData.password} className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-all text-sm" placeholder="••••••••" />
                   <Lock className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
                 </div>
               </div>
@@ -127,15 +127,15 @@ function Register({ onToggleLogin }) {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1 ml-1 uppercase tracking-wider">DOB</label>
-                  <input name="dob" type="date" onChange={handleChange} value={formData.dob} className="block w-full rounded-xl bg-slate-50 py-3 px-3 text-slate-900 ring-1 ring-slate-200 focus:ring-2 focus:ring-orange-500 transition-all text-sm cursor-pointer" />
+                  <input name="dob" type="date" onChange={handleChange} value={formData.dob} className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-3 text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-all text-sm cursor-pointer" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1 ml-1 uppercase tracking-wider">Age</label>
-                  <input name="age" type="number" onChange={handleChange} value={formData.age} className="block w-full rounded-xl bg-slate-50 py-3 px-4 text-slate-900 ring-1 ring-slate-200 focus:ring-2 focus:ring-orange-500 transition-all text-sm" placeholder="25" />
+                  <input name="age" type="number" onChange={handleChange} value={formData.age} className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-all text-sm" placeholder="25" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1 ml-1 uppercase tracking-wider">Gender</label>
-                  <select name="gender" onChange={handleChange} value={formData.gender} className="block w-full rounded-xl bg-slate-50 py-3 px-3 text-slate-900 ring-1 ring-slate-200 focus:ring-2 focus:ring-orange-500 transition-all text-sm cursor-pointer border-r-8 border-transparent">
+                  <select name="gender" onChange={handleChange} value={formData.gender} className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-3 text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-all text-sm cursor-pointer border-r-8 border-transparent">
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                     <option value="Other">Other</option>

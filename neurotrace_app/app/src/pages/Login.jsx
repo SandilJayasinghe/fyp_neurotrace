@@ -72,7 +72,7 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full rounded-xl border-0 bg-slate-50 py-3 pl-11 pr-3 text-slate-900 ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-orange-500 sm:text-sm sm:leading-6 transition-all"
+                  className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-3 text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none sm:text-sm sm:leading-6 transition-all"
                   placeholder="name@example.com"
                 />
                 <Mail className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
@@ -101,7 +101,7 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-xl border-0 bg-slate-50 py-3 pl-11 pr-3 text-slate-900 ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-orange-500 sm:text-sm sm:leading-6 transition-all"
+                  className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-3 text-slate-900 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none sm:text-sm sm:leading-6 transition-all"
                   placeholder="••••••••"
                 />
                 <Lock className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
