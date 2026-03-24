@@ -342,7 +342,7 @@ def detect_correction_windows(keystrokes: list,
     if not ikis:
         return []
 
-    median_iki   = float(np.median(ikis))
+    median_iki = float(np.median(ikis))
     pause_thresh = median_iki * 3.0
 
     n = len(keystrokes)
@@ -424,20 +424,20 @@ def compute_ood_score(X_raw: np.ndarray,
     outside the training distribution this session is.
     """
     center = np.array(scaler.center_)
-    scale  = np.array(scaler.scale_)
-    z      = (X_raw[0] - center) / (scale + 1e-8)
+    scale = np.array(scaler.scale_)
+    z = (X_raw[0] - center) / (scale + 1e-8)
 
-    mad              = float(np.median(np.abs(z)))
+    mad = float(np.median(np.abs(z)))
     extreme_fraction = float(np.mean(np.abs(z) > 3.0))
 
     if mad < 1.0 and extreme_fraction < 0.10:
-        grade   = 'In-Distribution'
+        grade = 'In-Distribution'
         warning = None
     elif mad < 2.0 and extreme_fraction < 0.25:
-        grade   = 'Marginal'
+        grade = 'Marginal'
         warning = 'Some features differ from the training population.'
     else:
-        grade   = 'Out-of-Distribution'
+        grade = 'Out-of-Distribution'
         warning = (
             f'{round(extreme_fraction*100)}% of features are far outside '
             f'the training data range. Result reliability is reduced.'

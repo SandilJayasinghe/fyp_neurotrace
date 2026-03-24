@@ -36,16 +36,16 @@ class TeacherEnsemble:
     """
 
     def __init__(self, bundle: dict, prep_bundle: dict):
-        self._models      = bundle['base_models']        # [(name, model), ...]
-        self._imb_models  = bundle.get('imb_models', [])
-        self._weights     = np.array(bundle['weights'])
+        self._models = bundle['base_models']  # [(name, model), ...]
+        self._imb_models = bundle.get('imb_models', [])
+        self._weights = np.array(bundle['weights'])
         self._imb_weights = np.array(bundle.get('imb_weights', []))
-        self._threshold   = float(bundle['threshold'])
-        self._feat_names  = bundle['feature_names']
-        self._scaler      = prep_bundle['scaler']
-        self._vt          = prep_bundle.get('variance_threshold')
-        self._label_map   = bundle.get('label_map', {0:'Healthy', 1:'Parkinson'})
-        self._n_features  = bundle['n_features_in']
+        self._threshold = float(bundle['threshold'])
+        self._feat_names = bundle['feature_names']
+        self._scaler = prep_bundle['scaler']
+        self._vt = prep_bundle.get('variance_threshold')
+        self._label_map = bundle.get('label_map', {0: 'Healthy', 1: 'Parkinson'})
+        self._n_features = bundle['n_features_in']
         # Merge weights
         if len(self._imb_models) > 0 and len(self._imb_weights) > 0:
             self._all_models = self._models + self._imb_models
@@ -92,13 +92,13 @@ class TeacherEnsemble:
         for pi in p:
             label_id = int(pi >= thr)
             results.append(PredictionResult(
-                probability_pd      = float(pi),
-                probability_healthy = float(1 - pi),
-                label               = self._label_map[label_id],
-                label_id            = label_id,
-                confidence          = float(abs(pi - 0.5) * 2),
-                threshold_used      = thr,
-                above_threshold     = bool(pi >= thr),
+                probability_pd=float(pi),
+                probability_healthy=float(1 - pi),
+                label=self._label_map[label_id],
+                label_id=label_id,
+                confidence=float(abs(pi - 0.5) * 2),
+                threshold_used=thr,
+                above_threshold=bool(pi >= thr),
             ))
         return results
 

@@ -43,7 +43,8 @@ for m_name in ['__main__', 'main', 'uvicorn.workers', 'services.feature_engineer
             mod = types.ModuleType(m_name)
             mod._ProbWrap = _ProbWrap
             sys.modules[m_name] = mod
-        except: pass
+        except Exception:
+            pass
 # --------------------------------------
 
 from routes import user_router, item_router
@@ -68,9 +69,9 @@ async def lifespan(app: FastAPI):
     # Load ML models
     try:
         with open(MODEL_DIR / 'preprocessing.pkl', 'rb') as f:
-            PREP = pickle.load(f)
+            PREP = pickle.load(f)  # nosec: internal model files only
         with open(MODEL_DIR / 'student_aim.pkl', 'rb') as f:
-            AIM_BUNDLE = pickle.load(f)
+            AIM_BUNDLE = pickle.load(f)  # nosec: internal model files only
         with open(MODEL_DIR / 'model_metadata.json', 'r') as f:
             METADATA = json.load(f)
         
@@ -120,15 +121,15 @@ def compute_session_quality(keystrokes: list, polling_hz: int = 125, detection_c
                  'detection_confidence': detection_confidence }
     
     q_ms = 1000.0 / float(polling_hz)
-    median_iki   = float(np.median(all_il))
+    median_iki = float(np.median(all_il))
     spike_thresh = median_iki * 4.0
-    spike_ratio  = sum(1 for il in all_il if il > spike_thresh) / len(all_il)
-    ht_cv        = float(np.std(all_ht) / (np.mean(all_ht) + 1e-8)) if all_ht else 0.0
-    n            = len(keystrokes)
+    spike_ratio = sum(1 for il in all_il if il > spike_thresh) / len(all_il)
+    ht_cv = float(np.std(all_ht) / (np.mean(all_ht) + 1e-8)) if all_ht else 0.0
+    n = len(keystrokes)
     
-    spike_score   = max(0.0, 1.0 - spike_ratio * 10)
-    volume_score  = min(n / 400.0, 1.0)
-    rhythm_score  = max(0.0, 1.0 - ht_cv)
+    spike_score = max(0.0, 1.0 - spike_ratio * 10)
+    volume_score = min(n / 400.0, 1.0)
+    rhythm_score = max(0.0, 1.0 - ht_cv)
     polling_score = min(polling_hz / 1000.0, 1.0)
     
     # Quantisation consistency check
@@ -201,8 +202,8 @@ def apply_age_correction(probability: float,
             user_baseline = b
             break
 
-    correction     = user_baseline - MODEL_HEALTHY_BASELINE
-    corrected      = float(np.clip(probability - correction, 0.01, 0.99))
+    correction = user_baseline - MODEL_HEALTHY_BASELINE
+    corrected = float(np.clip(probability - correction, 0.01, 0.99))
 
     return {
         'raw':        probability,
@@ -218,7 +219,7 @@ def apply_window_confidence_weight(probability: float,
     were available. More windows = more confident = less shrinkage.
     """
     confidence = min(n_windows / 10.0, 1.0)
-    shrinkage  = 1.0 - confidence
+    shrinkage = 1.0 - confidence
     return float(probability * confidence + 0.5 * shrinkage)
 
 def compute_personal_baseline_score(
@@ -234,10 +235,10 @@ def compute_personal_baseline_score(
     
     if baseline_probs:
         personal_mean = float(np.mean(baseline_probs))
-        personal_std  = float(np.std(baseline_probs))
+        personal_std = float(np.std(baseline_probs))
     else:
         personal_mean = current_prob
-        personal_std  = 0.0
+        personal_std = 0.0
 
     if len(session_history) < min_sessions:
         sessions_needed = min_sessions - len(session_history)
@@ -440,7 +441,7 @@ async def predict(request: PredictRequest, current_user: User = Depends(user_rou
         # 7. Post-hoc Clinical Corrections
         print("[PREDICT] Step 7: Post-hoc Clinical Corrections")
         weighted_p = apply_window_confidence_weight(prob_raw, n_windows)
-        age_res    = apply_age_correction(weighted_p, age)
+        age_res = apply_age_correction(weighted_p, age)
         corrected_p = age_res['corrected']
 
         # 8. OOD & Reliability Scoring
@@ -524,18 +525,18 @@ async def predict(request: PredictRequest, current_user: User = Depends(user_rou
         print("[PREDICT] Step 13: Clinical Persistence")
         try:
             save_session(
-                user_id               = user_id,
-                session_id            = str(request.sessionId),
-                probability           = float(corrected_p or 0.5),
-                raw_probability       = float(prob_raw or 0.5),
-                label                 = int(label),
-                n_keystrokes          = len(ks_list),
-                n_windows             = int(n_windows),
-                raw_feature_vector    = X_raw[0].tolist(),
-                scaled_feature_vector = X_scaled[0].tolist(),
-                ood_grade             = str(ood.get('ood_grade', 'Unknown')),
-                age_at_session        = int(age),
-                keyboard_polling      = polling_hz,
+                user_id=user_id,
+                session_id=str(request.sessionId),
+                probability=float(corrected_p or 0.5),
+                raw_probability=float(prob_raw or 0.5),
+                label=int(label),
+                n_keystrokes=len(ks_list),
+                n_windows=int(n_windows),
+                raw_feature_vector=X_raw[0].tolist(),
+                scaled_feature_vector=X_scaled[0].tolist(),
+                ood_grade=str(ood.get('ood_grade', 'Unknown')),
+                age_at_session=int(age),
+                keyboard_polling=polling_hz,
             )
         except Exception as e:
             print(f"[PREDICT Error] DB persistence failed: {e}")
@@ -543,15 +544,15 @@ async def predict(request: PredictRequest, current_user: User = Depends(user_rou
         # 14. Verdict Generation
         print("[PREDICT] Step 14: Verdict Generation")
         verdict = generate_verdict(
-            corrected_prob  = corrected_p,
-            raw_prob        = prob_raw,
-            baseline_result = baseline,
-            age             = age,
-            n_keystrokes    = len(ks_list),
-            n_windows       = n_windows,
-            top_feature     = top_factor_names[0] if top_factor_names else "Rhythm",
-            ood_grade       = ood.get('ood_grade', 'Unknown'),
-            confidence_band = band
+            corrected_prob=corrected_p,
+            raw_prob=prob_raw,
+            baseline_result=baseline,
+            age=age,
+            n_keystrokes=len(ks_list),
+            n_windows=n_windows,
+            top_feature=top_factor_names[0] if top_factor_names else "Rhythm",
+            ood_grade=ood.get('ood_grade', 'Unknown'),
+            confidence_band=band
         )
 
         # 15. Final Response
@@ -625,4 +626,4 @@ def features(request: PredictRequest):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="127.0.0.1", port=port)

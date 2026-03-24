@@ -78,10 +78,17 @@ function Register({ onToggleLogin }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8 animate-fade-in relative overflow-hidden"
-         style={{ backgroundImage: `url(${backgroundImg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
-      {/* Dark Overlay to ensure readability and cover entire screen */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
+    <div className="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8 relative overflow-hidden">
+      {/* Optimized Background Image (LCP Target) */}
+      <img 
+        src={backgroundImg} 
+        alt="" 
+        className="absolute inset-0 w-full h-full object-cover z-0" 
+        loading="eager"
+        fetchpriority="high"
+      />
+      {/* Dark Overlay */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[1]"></div>
       
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
         <h2 className="text-3xl font-extrabold leading-9 tracking-tight text-white mb-2 shadow-sm">Create New Account</h2>

@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { Brain, LogOut, User, Loader2, ShieldCheck, Activity } from 'lucide-react'
 import tremoraBlue from './assets/tremora-blue.png'
-import Login from './pages/Login'
-import Register from './pages/Register'
-import ResetPassword from './pages/ResetPassword'
-import { ParkinsonScreening } from './pages/ParkinsonScreening'
-import ResultsPage from './pages/ResultsPage'
-import { HistoryPage } from './pages/HistoryPage'
 import { apiUrl } from './config/api'
+
+// Lazy load pages for performance
+const Login = lazy(() => import('./pages/Login'))
+const Register = lazy(() => import('./pages/Register'))
+const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const ParkinsonScreening = lazy(() => import('./pages/ParkinsonScreening').then(m => ({ default: m.ParkinsonScreening })))
+const ResultsPage = lazy(() => import('./pages/ResultsPage'))
+const HistoryPage = lazy(() => import('./pages/HistoryPage').then(m => ({ default: m.HistoryPage })))
 
 /**
  * Tremora Premium Dark Theme v3.0
@@ -68,16 +70,28 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-sky-500 animate-spin" />
+      <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center">
+        <div className="relative mb-8">
+           <div className="absolute inset-0 bg-sky-400/10 blur-3xl rounded-full scale-150" />
+           <img src={tremoraBlue} alt="Tremora" className="w-32 h-32 object-contain relative z-10" />
+        </div>
+        <div className="flex flex-col items-center gap-2">
+           <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tighter italic">Tremora</h1>
+           <span className="text-[10px] font-black text-sky-600 uppercase tracking-[0.5em] italic ml-2">Initializing Core</span>
+           <Loader2 className="w-5 h-5 text-sky-500 animate-spin mt-2" />
+        </div>
       </div>
     )
   }
 
   if (!isLoggedIn) {
-    if (authView === 'login') return <Login onLoginSuccess={checkAuthStatus} onToggleRegister={() => setAuthView('register')} onToggleReset={() => setAuthView('reset')} />
-    if (authView === 'register') return <Register onToggleLogin={() => setAuthView('login')} />
-    if (authView === 'reset') return <ResetPassword onToggleLogin={() => setAuthView('login')} />
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-[#f8fafc] flex items-center justify-center"><Loader2 className="w-10 h-10 text-sky-500 animate-spin" /></div>}>
+        {authView === 'login' && <Login onLoginSuccess={checkAuthStatus} onToggleRegister={() => setAuthView('register')} onToggleReset={() => setAuthView('reset')} />}
+        {authView === 'register' && <Register onToggleLogin={() => setAuthView('login')} />}
+        {authView === 'reset' && <ResetPassword onToggleLogin={() => setAuthView('login')} />}
+      </Suspense>
+    )
   }
 
   return (
@@ -137,19 +151,21 @@ function App() {
          <div className="fixed bottom-1/4 -left-1/4 w-[500px] h-[500px] bg-blue-200/20 rounded-full blur-[120px] pointer-events-none opacity-40" />
          
          <div className="relative z-10">
-            {view === 'results' ? (
-                <ResultsPage result={lastResult} user={user} onRestart={handleRestart} />
-            ) : view === 'history' ? (
-                <HistoryPage 
-                  onBack={() => setView('assessment')} 
-                  onViewResult={(res) => {
-                    setLastResult(res);
-                    setView('results');
-                  }}
-                />
-            ) : (
-                <ParkinsonScreening onResult={handleResult} />
-            )}
+            <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 text-sky-500 animate-spin" /></div>}>
+              {view === 'results' ? (
+                  <ResultsPage result={lastResult} user={user} onRestart={handleRestart} />
+              ) : view === 'history' ? (
+                  <HistoryPage 
+                    onBack={() => setView('assessment')} 
+                    onViewResult={(res) => {
+                      setLastResult(res);
+                      setView('results');
+                    }}
+                  />
+              ) : (
+                  <ParkinsonScreening onResult={handleResult} />
+              )}
+            </Suspense>
          </div>
       </main>
 
