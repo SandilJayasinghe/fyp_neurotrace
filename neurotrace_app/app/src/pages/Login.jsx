@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Brain, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { apiUrl } from '../config/api';
+import logoBlue from '../assets/tremora-blue.png';
 
 function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
   const [email, setEmail] = useState('');
@@ -44,9 +45,7 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center">
-          <div className="p-3 bg-sky-500 rounded-2xl shadow-lg shadow-sky-500/20">
-            <Brain className="w-8 h-8 text-white" />
-          </div>
+          <img src={logoBlue} alt="Tremora Logo" className="w-20 h-20 object-contain" />
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold leading-9 tracking-tight text-slate-900">
           Sign In to Tremora
@@ -73,7 +72,7 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full rounded-xl border-0 bg-slate-50 py-3 pl-11 pr-3 text-slate-900 ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-sky-500 sm:text-sm sm:leading-6 transition-all"
+                  className="block w-full rounded-xl border-0 bg-slate-50 py-3 pl-11 pr-3 text-slate-900 ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-orange-500 sm:text-sm sm:leading-6 transition-all"
                   placeholder="name@example.com"
                 />
                 <Mail className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
@@ -102,7 +101,7 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-xl border-0 bg-slate-50 py-3 pl-11 pr-3 text-slate-900 ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-sky-500 sm:text-sm sm:leading-6 transition-all"
+                  className="block w-full rounded-xl border-0 bg-slate-50 py-3 pl-11 pr-3 text-slate-900 ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-orange-500 sm:text-sm sm:leading-6 transition-all"
                   placeholder="••••••••"
                 />
                 <Lock className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />

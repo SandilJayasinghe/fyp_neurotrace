@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Brain, LogOut, User, Loader2, ShieldCheck, Activity } from 'lucide-react'
+import tremoraBlue from './assets/tremora-blue.png'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ResetPassword from './pages/ResetPassword'
@@ -86,7 +87,7 @@ function App() {
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4 cursor-pointer" onClick={handleRestart}>
              <div className="transition-transform active:scale-90 flex items-center justify-center pointer-events-auto">
-                <img src="./icon.png" alt="Tremora Logo" className="w-[3.25rem] h-[3.25rem] object-contain" />
+                <img src={tremoraBlue} alt="Tremora Logo" className="w-[3.25rem] h-[3.25rem] object-contain" />
               </div>
               <div className="flex flex-col -gap-1">
                  <span className="text-2xl font-black tracking-tighter text-slate-900 uppercase italic">Tremora</span>
