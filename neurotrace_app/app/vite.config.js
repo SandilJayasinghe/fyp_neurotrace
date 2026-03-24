@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   base: './',
@@ -10,9 +9,28 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor': ['react', 'react-dom', 'framer-motion', 'lucide-react', 'recharts', 'axios'],
-          'radix': ['@radix-ui/react-progress', '@radix-ui/react-tooltip']
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (
+              id.includes('react') ||
+              id.includes('react-dom') ||
+              id.includes('framer-motion') ||
+              id.includes('lucide-react') ||
+              id.includes('recharts') ||
+              id.includes('axios')
+            ) {
+              return 'vendor';
+            }
+
+            if (
+              id.includes('@radix-ui/react-progress') ||
+              id.includes('@radix-ui/react-tooltip')
+            ) {
+              return 'radix';
+            }
+
+            return 'vendor';
+          }
         }
       }
     },

@@ -116,9 +116,11 @@ def compute_session_quality(keystrokes: list, polling_hz: int = 125, detection_c
               if 0 < k['hold_time'] < 10000]
     
     if not all_il:
-        return { 'score': 0, 'grade': 'Poor', 'spike_ratio': 0.0, 'reason': 'No timing data',
-                 'polling_hz': polling_hz, 'polling_score': 0.0, 'min_measurable_ms': 1000.0/polling_hz,
-                 'detection_confidence': detection_confidence }
+        return {
+            'score': 0, 'grade': 'Poor', 'spike_ratio': 0.0, 'reason': 'No timing data',
+            'polling_hz': polling_hz, 'polling_score': 0.0, 'min_measurable_ms': 1000.0 / polling_hz,
+            'detection_confidence': detection_confidence
+        }
     
     q_ms = 1000.0 / float(polling_hz)
     median_iki = float(np.median(all_il))
@@ -146,10 +148,13 @@ def compute_session_quality(keystrokes: list, polling_hz: int = 125, detection_c
         0.10 * quantisation_consistency
     )
     score_pct = int(round(score * 100))
-    
-    if score_pct >= 80:   grade = 'Good'
-    elif score_pct >= 55: grade = 'Fair'
-    else:                 grade = 'Poor'
+
+    if score_pct >= 80:
+        grade = 'Good'
+    elif score_pct >= 55:
+        grade = 'Fair'
+    else:
+        grade = 'Poor'
     
     reason = []
     if spike_ratio > 0.08:
@@ -167,13 +172,13 @@ def compute_session_quality(keystrokes: list, polling_hz: int = 125, detection_c
         reason.append('keyboard polling rate could not be detected — result based on assumed 125Hz')
     
     return {
-        'score':               score_pct,
-        'grade':               grade,
-        'spike_ratio':         float(round(float(spike_ratio * 100), 1)),
-        'reason':              ', '.join(reason) if reason else 'Session quality is good',
-        'polling_hz':          polling_hz,
-        'polling_score':       float(round(float(polling_score * 100), 1)),
-        'min_measurable_ms':   q_ms,
+        'score': score_pct,
+        'grade': grade,
+        'spike_ratio': float(round(float(spike_ratio * 100), 1)),
+        'reason': ', '.join(reason) if reason else 'Session quality is good',
+        'polling_hz': polling_hz,
+        'polling_score': float(round(float(polling_score * 100), 1)),
+        'min_measurable_ms': q_ms,
         'detection_confidence': detection_confidence,
     }
 
@@ -206,8 +211,8 @@ def apply_age_correction(probability: float,
     corrected = float(np.clip(probability - correction, 0.01, 0.99))
 
     return {
-        'raw':        probability,
-        'corrected':  corrected,
+        'raw': probability,
+        'corrected': corrected,
         'correction': float(round(float(correction), 3)),
         'age_baseline': user_baseline,
     }
@@ -243,13 +248,13 @@ def compute_personal_baseline_score(
     if len(session_history) < min_sessions:
         sessions_needed = min_sessions - len(session_history)
         return {
-            'baseline_ready':    False,
-            'sessions_needed':   sessions_needed,
-            'raw_score':         current_prob,
-            'display_score':     None,
-            'status':            'Establishing baseline',
-            'status_colour':     'grey',
-            'personal_mean':     float(round(personal_mean, 3)),
+            'baseline_ready': False,
+            'sessions_needed': sessions_needed,
+            'raw_score': current_prob,
+            'display_score': None,
+            'status': 'Establishing baseline',
+            'status_colour': 'grey',
+            'personal_mean': float(round(personal_mean, 3)),
             'message': (
                 f'Complete {sessions_needed} more '
                 f'session{"s" if sessions_needed > 1 else ""} to enable '
@@ -280,29 +285,29 @@ def compute_personal_baseline_score(
         )
 
     return {
-        'baseline_ready':    True,
-        'status':            status,
-        'status_colour':     colour,
-        'message':           message,
-        'z_score':           float(round(float(z), 2)),
-        'personal_mean':     float(round(float(personal_mean), 3)),
-        'personal_std':      float(round(float(personal_std), 3)),
-        'raw_score':         current_prob,
+        'baseline_ready': True,
+        'status': status,
+        'status_colour': colour,
+        'message': message,
+        'z_score': float(round(float(z), 2)),
+        'personal_mean': float(round(float(personal_mean), 3)),
+        'personal_std': float(round(float(personal_std), 3)),
+        'raw_score': current_prob,
         'baseline_sessions': len(baseline_probs),
-        'display_score':     float(round(float(z), 2)),
-        'display_mode':      'z_score',
+        'display_score': float(round(float(z), 2)),
+        'display_mode': 'z_score',
     }
 
 def generate_verdict(
-    corrected_prob:   float,
-    raw_prob:         float,
-    baseline_result:  dict,
-    age:              int,
-    n_keystrokes:     int,
-    n_windows:        int,
-    top_feature:      str,
-    ood_grade:        str,
-    confidence_band:  str,
+    corrected_prob: float,
+    raw_prob: float,
+    baseline_result: dict,
+    age: int,
+    n_keystrokes: int,
+    n_windows: int,
+    top_feature: str,
+    ood_grade: str,
+    confidence_band: str,
 ) -> str:
     """New Step 11 Verdict Generator"""
     parts = []
@@ -357,9 +362,9 @@ def generate_verdict(
         'ht': 'how long keys are held down',
         'ft': 'the time between releasing one key and pressing the next',
         'lat': 'the interval between consecutive keypresses',
-        'bg':  'the timing of specific key pair combinations',
+        'bg': 'the timing of specific key pair combinations',
         'dfa': 'the long-range rhythm consistency of your typing',
-        'pent':'the complexity and predictability of your typing rhythm',
+        'pent': 'the complexity and predictability of your typing rhythm',
     }
     signal = next(
         (desc for key, desc in signal_map.items() if key in top_feature.lower()),

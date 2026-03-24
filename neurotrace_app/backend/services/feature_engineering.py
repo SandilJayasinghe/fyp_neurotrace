@@ -450,10 +450,10 @@ def compute_ood_score(X_raw: np.ndarray,
     ]
 
     return {
-        'ood_grade':             grade,
-        'ood_mad':               round(mad, 3),
-        'extreme_fraction':      round(extreme_fraction, 3),
-        'ood_warning':           warning,
+        'ood_grade': grade,
+        'ood_mad': round(mad, 3),
+        'extreme_fraction': round(extreme_fraction, 3),
+        'ood_warning': warning,
         'most_extreme_features': top_extreme,
     }
 
