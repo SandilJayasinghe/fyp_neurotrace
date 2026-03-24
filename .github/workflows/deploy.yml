@@ -16,12 +16,21 @@ jobs:
           host: ${{ secrets.DROPLET_HOST }}
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
-          debug: true
+          port: 22
           script: |
-            echo "Pulling latest changes..."
+            echo "Moving to project directory..."
             cd ~/fyp_neurotrace || exit 1
+            
+            echo "Syncing code..."
             git pull origin main || exit 1
-            . neurotrace_app/backend/venv/bin/activate || exit 1
+            
+            echo "Updating Python environment..."
+            # Using 'source' is often more robust in CI environments
+            source neurotrace_app/backend/venv/bin/activate || exit 1
             pip install -r neurotrace_app/backend/requirements.txt --upgrade --quiet || exit 1
-            systemctl restart tremora || exit 1
+            
+            echo "Restarting service..."
+            # Added sudo to ensure the service actually restarts
+            sudo systemctl restart tremora || exit 1
+            
             echo "Deploy complete"
