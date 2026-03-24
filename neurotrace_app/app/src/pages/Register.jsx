@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Brain, Lock, Mail, User, Calendar, Loader2 } from 'lucide-react';
 import { apiUrl } from '../config/api';
+import backgroundImg from '../assets/background.jpeg';
 
 function Register({ onToggleLogin }) {
   const [formData, setFormData] = useState({
@@ -77,13 +78,14 @@ function Register({ onToggleLogin }) {
   };
 
   return (
-    <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8 bg-[#f8fafc] animate-fade-in relative overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-[48rem] h-[32rem] bg-indigo-200/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
+    <div className="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8 animate-fade-in relative overflow-hidden"
+         style={{ backgroundImage: `url(${backgroundImg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+      {/* Dark Overlay to ensure readability and cover entire screen */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
       
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
-        <h2 className="text-3xl font-extrabold leading-9 tracking-tight text-slate-900 mb-2">Create New Account</h2>
-        <p className="text-sm text-slate-800 italic">Join the Tremora analysis platform</p>
+        <h2 className="text-3xl font-extrabold leading-9 tracking-tight text-white mb-2 shadow-sm">Create New Account</h2>
+        <p className="text-sm text-white/80 italic mb-8 italic">Join the next generation of neurological assessment</p>
       </div>
 
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-lg relative z-10">
@@ -155,10 +157,17 @@ function Register({ onToggleLogin }) {
             </form>
           )}
 
-          <p className="mt-8 text-center text-sm text-slate-700">
-            Already have an account?{' '}
-            <button onClick={onToggleLogin} className="font-semibold text-sky-600 hover:text-sky-500 font-sans">Log In</button>
-          </p>
+          <div className="mt-8 text-center">
+            <p className="text-sm text-grey/90">
+              Already have an account?{' '}
+              <button 
+                onClick={onToggleLogin} 
+                className="font-semibold text-sky-400 hover:text-sky-300 underline-offset-4 hover:underline transition-all"
+              >
+                Sign In Instead
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     </div>

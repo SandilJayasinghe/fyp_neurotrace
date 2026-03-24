@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Brain, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { apiUrl } from '../config/api';
 import logoBlue from '../assets/tremora-blue.png';
+import backgroundImg from '../assets/background.jpeg';
 
 function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
   const [email, setEmail] = useState('');
@@ -38,19 +39,19 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
   };
 
   return (
-    <div className="flex h-full flex-col justify-center px-6 py-12 lg:px-8 bg-[#f8fafc] animate-fade-in relative overflow-hidden">
-      {/* Background Orbs */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-sky-200/20 rounded-full blur-[100px]"></div>
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-200/20 rounded-full blur-[100px]"></div>
+    <div className="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8 animate-fade-in relative overflow-hidden" 
+         style={{ backgroundImage: `url(${backgroundImg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+      {/* Dark Overlay to ensure readability and cover entire screen */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center">
           <img src={logoBlue} alt="Tremora Logo" className="w-20 h-20 object-contain" />
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold leading-9 tracking-tight text-slate-900">
+        <h2 className="mt-6 text-center text-3xl font-extrabold leading-9 tracking-tight text-white shadow-sm">
           Sign In to Tremora
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-800">
+        <p className="mt-2 text-center text-sm text-white/80">
           Enter your credentials to access the analytics workspace
         </p>
       </div>
@@ -124,11 +125,11 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
             </button>
           </form>
 
-          <p className="mt-8 text-center text-sm text-slate-700">
+          <p className="mt-8 text-center text-sm text-grey/90">
             Don't have an account?{' '}
             <button 
               onClick={onToggleRegister}
-              className="font-semibold leading-6 text-sky-600 hover:text-sky-500 underline-offset-4 hover:underline transition-all"
+              className="font-semibold leading-6 text-sky-400 hover:text-sky-300 underline-offset-4 hover:underline transition-all"
             >
               Register Now
             </button>

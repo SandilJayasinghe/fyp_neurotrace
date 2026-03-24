@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Loader2, ArrowLeft } from 'lucide-react';
 import { apiUrl } from '../config/api';
+import backgroundImg from '../assets/background.jpeg';
 
 function ResetPassword({ onToggleLogin }) {
   const [email, setEmail] = useState('');
@@ -37,13 +38,14 @@ function ResetPassword({ onToggleLogin }) {
   };
 
   return (
-    <div className="flex h-screen flex-col justify-center px-6 py-12 lg:px-8 bg-[#f8fafc] animate-fade-in relative">
-      {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-sky-200/20 rounded-full blur-[100px]"></div>
+    <div className="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8 animate-fade-in relative overflow-hidden"
+         style={{ backgroundImage: `url(${backgroundImg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+      {/* Dark Overlay to ensure readability and cover entire screen */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <h2 className="text-center text-3xl font-extrabold text-slate-900">Reset Password</h2>
-        <p className="mt-2 text-center text-sm text-slate-800 italic">Securely recover your account access</p>
+        <h2 className="text-center text-3xl font-extrabold text-white shadow-sm">Reset Password</h2>
+        <p className="mt-2 text-center text-sm text-white/80 italic">Securely recover your account access</p>
       </div>
 
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
@@ -82,7 +84,7 @@ function ResetPassword({ onToggleLogin }) {
           )}
 
           <div className="mt-8 text-center">
-            <button onClick={onToggleLogin} className="flex items-center gap-2 mx-auto text-sm text-slate-700 hover:text-sky-600 transition-colors">
+            <button onClick={onToggleLogin} className="flex items-center gap-2 mx-auto text-sm text-white/90 hover:text-sky-400 transition-colors">
               <ArrowLeft className="w-3 h-3" /> Back to Log In
             </button>
           </div>
