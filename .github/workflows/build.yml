@@ -115,7 +115,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.release_tag }}
-          name: Tremora Windows ${{ steps.version.outputs.release_tag }}
+          name: Tremora PD Screening Tool ${{ steps.version.outputs.release_tag }}
           generate_release_notes: true
           make_latest: true
           files: ${{ steps.rename.outputs.renamed_exe }}
