@@ -2,8 +2,8 @@ name: Build Windows Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -18,6 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -26,50 +27,62 @@ jobs:
           cache: 'npm'
           cache-dependency-path: neurotrace_app/app/package-lock.json
 
-      - name: Resolve release tag from package version
+      - name: Auto-increment patch version
         id: version
         shell: pwsh
         run: |
+          # Read current version from package.json
           $pkg = Get-Content "neurotrace_app/app/package.json" -Raw | ConvertFrom-Json
-          $expectedTag = "v$($pkg.version)"
-          $versionNumber = "$($pkg.version)"
-          if ("${{ github.ref_type }}" -eq "tag") {
-            $actualTag = "${{ github.ref_name }}"
-            if ($actualTag -ne $expectedTag) {
-              throw "Tag '$actualTag' does not match package.json version tag '$expectedTag'."
-            }
-            $releaseTag = $actualTag
-          } else {
-            $releaseTag = $expectedTag
-          }
-          "release_tag=$releaseTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "version_number=$versionNumber" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          $current = [System.Version]$pkg.version
 
-      - name: Create and push tag (workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch'
-        shell: pwsh
-        run: |
+          # Bump patch version
+          $newVersion = "$($current.Major).$($current.Minor).$($current.Build + 1)"
+          $newTag = "v$newVersion"
+
+          # Check if this tag already exists on remote
+          git fetch --tags
+          $exists = git tag --list $newTag
+          if ($exists) {
+            Write-Host "Tag $newTag already exists. Skipping release."
+            "skip=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "release_tag=$newTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "version_number=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            exit 0
+          }
+
+          # Update package.json with new version
+          $pkg.version = $newVersion
+          $pkg | ConvertTo-Json -Depth 100 | Set-Content "neurotrace_app/app/package.json"
+
+          # Commit and push the version bump
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          $releaseTag = "${{ steps.version.outputs.release_tag }}"
-          git fetch --tags
-          $exists = git tag --list $releaseTag
-          if (-not $exists) {
-            git tag $releaseTag
-            git push origin $releaseTag
-          }
+          git add neurotrace_app/app/package.json
+          git commit -m "chore: bump version to $newVersion [skip ci]"
+          git push origin main
+
+          # Create and push the new tag
+          git tag $newTag
+          git push origin $newTag
+
+          "skip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "release_tag=$newTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "version_number=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Install dependencies
+        if: steps.version.outputs.skip == 'false'
         working-directory: neurotrace_app/app
         run: npm ci
 
       - name: Build Electron app
+        if: steps.version.outputs.skip == 'false'
         working-directory: neurotrace_app/app
         run: npm run electron:build -- --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Rename installer to tremora-version
+      - name: Rename installer
+        if: steps.version.outputs.skip == 'false'
         id: rename
         shell: pwsh
         run: |
@@ -87,24 +100,22 @@ jobs:
           }
 
           Move-Item -Path $installer.FullName -Destination $targetExe -Force
-
           "renamed_exe=$targetExe" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-      - name: Upload Windows binaries artifact
+      - name: Upload artifact
+        if: steps.version.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: tremora-windows-binaries-${{ steps.version.outputs.release_tag }}
-          path: |
-            ${{ steps.rename.outputs.renamed_exe }}
+          path: ${{ steps.rename.outputs.renamed_exe }}
           if-no-files-found: error
 
-      - name: Create GitHub Release (Windows binaries only)
+      - name: Create GitHub Release
+        if: steps.version.outputs.skip == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.release_tag }}
           name: Tremora Windows ${{ steps.version.outputs.release_tag }}
           generate_release_notes: true
           make_latest: true
-          files: |
-            ${{ steps.rename.outputs.renamed_exe }}
-
+          files: ${{ steps.rename.outputs.renamed_exe }}
