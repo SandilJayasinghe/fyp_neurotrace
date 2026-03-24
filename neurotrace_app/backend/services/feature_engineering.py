@@ -11,8 +11,10 @@ class _ProbWrap:
     def __getstate__(self): return self.__dict__
 
 def _stats(x):
-    m = np.mean(x); s = np.std(x)
-    if s < 1e-10: return m, 0., 0., 0., 0.
+    m = np.mean(x)
+    s = np.std(x)
+    if s < 1e-10:
+        return m, 0., 0., 0., 0.
     z = (x - m) / s
     kurt = float((z**4).mean() - 3.)
     return m, s, float((z**3).mean()), kurt, s / (m + 1e-8)
@@ -37,15 +39,19 @@ def _dfa_alpha(x):
         if nb < 2: continue
         seg = y[:nb*b].reshape(nb, b)
         t = np.arange(b, dtype=np.float64)
-        tm = t.mean(); t2 = ((t-tm)**2).sum()
+        tm = t.mean()
+        t2 = ((t-tm)**2).sum()
         slope_v = ((seg - seg.mean(1, keepdims=True)) * (t - tm)).sum(1) / t2
         trend = slope_v[:, None] * (t - tm) + seg.mean(1, keepdims=True)
         flucts.append(np.sqrt(((seg - trend)**2).mean()))
-    if len(flucts) < 3: return 0.75
-    log_f = np.array(flucts); log_f = np.where(log_f <= 0, 1e-10, log_f)
+    if len(flucts) < 3:
+        return 0.75
+    log_f = np.array(flucts)
+    log_f = np.where(log_f <= 0, 1e-10, log_f)
     try:
         alpha = np.polyfit(np.log10(box_sizes[:len(flucts)]), np.log10(log_f), 1)[0]
-    except: return 0.75
+    except Exception:
+        return 0.75
     return float(np.clip(alpha, 0., 2.))
 
 def _perm_entropy_complexity(x, order=3):
@@ -60,8 +66,11 @@ def _perm_entropy_complexity(x, order=3):
     counts = np.bincount(idx, minlength=n_patterns).astype(np.float64)
     p = counts / counts.sum(); p_nz = p[p > 0]
     H = float(np.clip(-np.sum(p_nz * np.log2(p_nz)) / np.log2(n_patterns), 0., 1.))
-    def _sh(q): q2 = q[q > 0]; return -np.sum(q2 * np.log2(q2))
-    p_u = np.ones(n_patterns) / n_patterns; m = (p + p_u) / 2.
+    def _sh(q):
+        q2 = q[q > 0]
+        return -np.sum(q2 * np.log2(q2))
+    p_u = np.ones(n_patterns) / n_patterns
+    m = (p + p_u) / 2.
     JS = max(_sh(m) - 0.5 * _sh(p) - 0.5 * _sh(p_u), 0.)
     return H, float(np.clip(H * JS, 0., 1.))
 
@@ -82,7 +91,9 @@ def _bigram_features(keys, lat):
     return feats
 
 def extract_features(ht, ft, lat, key=None):
-    ht = np.array(ht); ft = np.array(ft); lat = np.array(lat)
+    ht = np.array(ht)
+    ft = np.array(ft)
+    lat = np.array(lat)
     
     # 1-10: HT Stats
     hm, hs, hsk, hku, hcv = _stats(ht)
@@ -116,8 +127,10 @@ def extract_features(ht, ft, lat, key=None):
             xf = np.fft.fftfreq(len(ht), 1/125.0)[:len(ht)//2]
             idx = (xf > 0) & (xf < 12.0)
             if idx.any():
-                tpow = float(yf[idx].max()); tfreq = float(xf[idx][np.argmax(yf[idx])])
-        except: pass
+                tpow = float(yf[idx].max())
+                tfreq = float(xf[idx][np.argmax(yf[idx])])
+        except Exception as e:
+            print(f"Tremor Feature Error: {e}")
     
     slope = float(np.polyfit(np.arange(len(ht)), ht, 1)[0]) if len(ht) >= 10 else 0.0
     def _b(x): return float((x > (np.mean(x) + 1.5*np.std(x))).sum() / len(x)) if len(x)>5 else 0.0
@@ -129,7 +142,8 @@ def extract_features(ht, ft, lat, key=None):
     hfc = float(np.corrcoef(ht, ft)[0,1]) if len(ht) >= 10 else 0.0
     
     # 40-48: Segmental & Drift
-    nh = len(ht); n3 = nh // 3
+    nh = len(ht)
+    n3 = nh // 3
     e_m = float(np.median(ht[:n3])) if n3>0 else hm
     e_s = float(np.std(ht[:n3])) if n3>0 else hs
     m_m = float(np.median(ht[n3:2*n3])) if n3>0 else hm
@@ -147,7 +161,9 @@ def extract_features(ht, ft, lat, key=None):
     tdd = float(_b(ht) - _b(lat))
     
     # 52-60: DFA & Permutation Entropy
-    dfa_h = _dfa_alpha(ht); dfa_f = _dfa_alpha(ft); dfa_l = _dfa_alpha(lat)
+    dfa_h = _dfa_alpha(ht)
+    dfa_f = _dfa_alpha(ft)
+    dfa_l = _dfa_alpha(lat)
     phh, phc = _perm_entropy_complexity(ht)
     pfh, pfc = _perm_entropy_complexity(ft)
     plh, plc = _perm_entropy_complexity(lat)
@@ -293,8 +309,8 @@ def preprocess(X_raw: np.ndarray, prep_bundle: dict, keyboard_polling_hz: Option
     if scaler is not None:
         try:
             X = scaler.transform(X)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Scaler Exception: {e}")
             
     # Step 2: VarianceThreshold
     vt = prep_bundle.get('variance_threshold')
@@ -304,8 +320,8 @@ def preprocess(X_raw: np.ndarray, prep_bundle: dict, keyboard_polling_hz: Option
     if vt is not None:
         try:
             X = vt.transform(X)
-        except Exception:
-            pass  # skip if shape mismatch
+        except Exception as e:
+            print(f"Variance Threshold Exception: {e}")
             
     # Step 3: Feature selection (stored as 'selected_feat_idx', fallback 'selected_idx')
     sel_idx = prep_bundle.get('selected_feat_idx')
@@ -322,8 +338,8 @@ def preprocess(X_raw: np.ndarray, prep_bundle: dict, keyboard_polling_hz: Option
                 
             if has_elements:
                 X = X[:, sel_idx]
-        except Exception:
-            pass  # skip if out of range
+        except Exception as e:
+            print(f"Feature Selection Exception: {e}")
             
     return X
 

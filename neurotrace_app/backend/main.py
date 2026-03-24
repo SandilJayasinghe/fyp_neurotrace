@@ -43,8 +43,8 @@ for m_name in ['__main__', 'main', 'uvicorn.workers', 'services.feature_engineer
             mod = types.ModuleType(m_name)
             mod._ProbWrap = _ProbWrap
             sys.modules[m_name] = mod
-        except Exception:
-            pass
+        except Exception as e:
+            _ = e  # silent fallback for dummy module
 # --------------------------------------
 
 from routes import user_router, item_router
@@ -400,6 +400,41 @@ AIM_BUNDLE = None
 METADATA = {}
 AIM_MODEL = None
 
+def _extract_top_features(X_scaled: np.ndarray, aim_meta: dict, scaler_center: list) -> tuple:
+    aim_feat_names = aim_meta.get('input_feature_names', [])
+    aim_top_features = aim_meta.get('top5_features', [])
+    n_scaled_cols = X_scaled.shape[1]
+    all_f_objects: List[FeatureDetail] = []
+    
+    for i in range(n_scaled_cols):
+        name = aim_feat_names[i] if i < len(aim_feat_names) else f"feature_{i}"
+        try:
+            xv = X_scaled[0, i]
+            cv = scaler_center[i] if i < len(scaler_center) else 0.0
+            val = float(xv) if xv is not None else 0.0
+            center_val = float(cv) if cv is not None else 0.0
+            
+            importance = 0.01  # Default minimal importance
+            for feat, imp in aim_top_features:
+                if feat == name:
+                    importance = float(imp)
+                    break
+            
+            all_f_objects.append(FeatureDetail(
+                name=fe.extract_base_feature_name(name),
+                raw_name=name,
+                importance=importance,
+                pct=importance * 100.0,
+                value=val,
+                direction="UP" if val > center_val else "DOWN"
+            ))
+        except (IndexError, TypeError, ValueError):
+            continue
+            
+    top_5 = sorted(all_f_objects, key=lambda x: x.importance, reverse=True)[:5]
+    top_factor_names = [f.name for f in top_5]
+    return all_f_objects, top_5, top_factor_names
+
 @app.post("/predict", response_model=PredictResponse)
 async def predict(request: PredictRequest, current_user: User = Depends(user_router.get_current_user)):
     try:
@@ -468,46 +503,9 @@ async def predict(request: PredictRequest, current_user: User = Depends(user_rou
         # 11. Breakdown & Explainability
         print("[PREDICT] Step 11: Breakdown & Explainability")
         
-        # Pull AIM-specific feature names and importances (or fall back to defaults)
         aim_meta = METADATA.get('student_aim', {}) if METADATA else {}
-        aim_feat_names = aim_meta.get('input_feature_names', [])
-        aim_top_features = aim_meta.get('top5_features', [])
-        
-        n_scaled_cols = X_scaled.shape[1]
         scaler_center = PREP['scaler'].center_ if hasattr(PREP['scaler'], 'center_') else []
-        
-        # Display the 25 base columns correctly
-        all_f_objects = []
-        for i in range(n_scaled_cols):
-            name = aim_feat_names[i] if i < len(aim_feat_names) else f"feature_{i}"
-            try:
-                xv = X_scaled[0, i]
-                cv = scaler_center[i] if i < len(scaler_center) else 0.0
-                val = float(xv) if xv is not None else 0.0
-                center_val = float(cv) if cv is not None else 0.0
-                
-                # Try finding actual importance from metadata
-                importance = 0.01  # Default minimal importance
-                for feat, imp in aim_top_features:
-                    if feat == name:
-                        importance = imp
-                        break
-                
-                all_f_objects.append(FeatureDetail(
-                    name=fe.extract_base_feature_name(name),
-                    raw_name=name,
-                    importance=importance,
-                    pct=importance * 100,
-                    value=val,
-                    direction="UP" if val > center_val else "DOWN"
-                ))
-            except (IndexError, TypeError, ValueError):
-                continue
-        
-        # 12. Top Factors (used for quick summary)
-        print("[PREDICT] Step 12: Top Factors Extraction")
-        top_5 = sorted(all_f_objects, key=lambda x: x.importance, reverse=True)[:5]
-        top_factor_names = [f.name for f in top_5]
+        all_f_objects, top_5, top_factor_names = _extract_top_features(X_scaled, aim_meta, scaler_center)
 
         # 13. Contextual metadata
         print("[PREDICT] Step 13: Contextual metadata")
