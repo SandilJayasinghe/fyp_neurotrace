@@ -157,7 +157,7 @@ export function ParkinsonScreening({ onResult }) {
       <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 text-red-800 p-8">
         <h1 className="text-3xl font-black mb-4">Something went wrong</h1>
         <p className="mb-2">{error}</p>
-        <button onClick={reset} className="mt-4 px-6 py-3 bg-red-600 text-white rounded-xl font-bold">Try Again</button>
+        <button onClick={reset} className="mt-4 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors">Try Again</button>
       </div>
     );
   }
@@ -165,25 +165,25 @@ export function ParkinsonScreening({ onResult }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch relative pb-10">
       <div className="lg:col-span-4 space-y-6 flex flex-col animate-in slide-in-from-left duration-700">
-        <div className="bg-[#0a0f1d] p-7 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden flex-1 group">
+        <div className="bg-white p-7 rounded-[2.5rem] border border-slate-200 shadow-xl relative overflow-hidden flex-1 group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-[80px]" />
           
           <div className="flex justify-between items-center mb-10">
-             <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-2 italic">
-                <Cpu size={14} className="text-sky-400" /> Command Hub
+             <h2 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2 italic">
+                <Cpu size={14} className="text-sky-600" /> Command Hub
              </h2>
-             <span className="text-[8px] font-black text-slate-700 tracking-tighter uppercase px-2 py-0.5 border border-slate-800 rounded-md italic">v{validCount >= 150 ? "3.1-PRO" : "3.1-DEV"}</span>
+             <span className="text-[8px] font-black text-slate-600 tracking-tighter uppercase px-2 py-0.5 border border-slate-200 rounded-md italic">v{validCount >= 150 ? "3.1-PRO" : "3.1-DEV"}</span>
           </div>
 
           <div className="space-y-6">
-            <div className="p-6 bg-slate-950/40 rounded-2xl border border-slate-900 border-dashed space-y-4">
+            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 border-dashed space-y-4">
                  <div className="flex justify-between items-center">
-                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Signal Yield</span>
-                    <span className={`text-[10px] font-black tabular-nums transition-colors ${validCount >= 150 ? "text-emerald-400" : "text-sky-400"}`}>
+                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic">Signal Yield</span>
+                    <span className={`text-[10px] font-black tabular-nums transition-colors ${validCount >= 150 ? "text-emerald-600" : "text-sky-600"}`}>
                         {validCount}/150
                     </span>
                  </div>
-                 <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden shadow-inner">
+                 <div className="h-1.5 w-full bg-slate-200/50 rounded-full overflow-hidden shadow-inner">
                     <motion.div 
                         className={`h-full shadow-lg transition-colors ${validCount >= 150 ? "bg-emerald-500 shadow-emerald-500/20" : "bg-sky-500 shadow-sky-500/20"}`}
                         initial={{ width: 0 }}
@@ -194,28 +194,28 @@ export function ParkinsonScreening({ onResult }) {
 
             {state === 'IDLE' && (
               <div className="mb-2">
-                <p className="text-[10px] font-black text-sky-400 uppercase tracking-widest text-center">Randomized Clinical Prompt</p>
-                <p className="text-[9px] text-slate-500 text-center px-2">A unique paragraph is selected for each session to ensure valid motor capture. Please type naturally as the AI analyzes your subtle timing signals.</p>
+                <p className="text-[10px] font-black text-sky-600 uppercase tracking-widest text-center">Randomized Clinical Prompt</p>
+                <p className="text-[9px] text-slate-600 text-center px-2">A unique paragraph is selected for each session to ensure valid motor capture. Please type naturally as the AI analyzes your subtle timing signals.</p>
               </div>
             )}
 
             {keyboardInfo ? (
               <div className={`px-4 py-2.5 rounded-xl border flex items-center justify-between text-[10px] font-bold uppercase tracking-widest ${
                 !keyboardInfo.keyboard_name || keyboardInfo.detection_method === 'assumed'
-                  ? 'border-amber-500/20 bg-amber-500/5 text-amber-500'
+                  ? 'border-amber-500/20 bg-amber-500/5 text-amber-600'
                   : keyboardInfo.polling_hz >= 500
-                  ? 'border-teal-500/20 bg-teal-500/5 text-teal-400'
-                  : 'border-slate-700 bg-slate-900/30 text-slate-500'
+                  ? 'border-teal-500/20 bg-teal-500/5 text-teal-600'
+                  : 'border-slate-100 bg-slate-50 text-slate-600'
               }`}>
                 <span className="truncate">⌨ {keyboardInfo.keyboard_name || 'Unknown'}</span>
                 <span className={`flex-shrink-0 ml-2 ${
-                  keyboardInfo.polling_hz >= 500 ? 'text-teal-400' : keyboardInfo.polling_hz >= 250 ? 'text-white' : 'text-amber-400'
+                  keyboardInfo.polling_hz >= 500 ? 'text-teal-600' : keyboardInfo.polling_hz >= 250 ? 'text-slate-900' : 'text-amber-600'
                 }`}>
                   {keyboardInfo.polling_hz}Hz · ±{(1000/keyboardInfo.polling_hz).toFixed(0)}ms
                 </span>
               </div>
             ) : (
-              <div className="px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-900/30 text-slate-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+              <div className="px-4 py-2.5 rounded-xl border border-slate-100 bg-slate-50 text-slate-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
                 <RefreshCcw size={10} className="animate-spin" /> Detecting keyboard...
               </div>
             )}
@@ -231,7 +231,7 @@ export function ParkinsonScreening({ onResult }) {
                 </button>
                 <div className="mt-4 flex flex-col gap-2">
                   <button
-                    className="w-full py-3 rounded-xl font-bold text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-2 bg-slate-800 text-white hover:bg-sky-600 transition-colors"
+                    className="w-full py-3 rounded-xl font-bold text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-2 bg-slate-100 text-slate-700 hover:bg-sky-600 hover:text-white transition-all border border-slate-200"
                     onClick={() => fileInputRef.current && fileInputRef.current.click()}
                     disabled={uploading}
                   >
@@ -253,23 +253,23 @@ export function ParkinsonScreening({ onResult }) {
                   onClick={() => setShowExplorer(true)}
                   className={`py-4 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 border transition-all italic ${
                     validCount >= 150 
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20" 
-                    : "bg-slate-900 text-slate-400 border-slate-800 hover:bg-sky-500/10"
+                    ? "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100/50" 
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                   }`}
                 >
                   <Eye size={14} /> {validCount >= 150 ? "Confirm & Proceed" : "View Telemetry"}
                 </button>
                 {state === 'ACTIVE' && canAnalyse && (
-                   <button 
-                    onClick={() => analyse(token)}
-                    className="py-4 bg-white text-slate-950 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-sky-400 hover:text-white transition-all italic shadow-xl shadow-sky-500/10"
-                   >
-                    <Target size={14} /> Finish & Predict
-                   </button>
+                <button 
+                   onClick={() => analyse(token)}
+                   className="py-4 bg-sky-600 text-white rounded-xl font-black text-[9px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-sky-500 transition-all italic shadow-lg shadow-sky-600/20"
+                  >
+                   <Target size={14} /> Finish & Predict
+                  </button>
                 )}
                 <button 
                   onClick={reset}
-                  className="py-3 bg-slate-950/40 text-slate-700 rounded-xl font-black text-[8px] uppercase tracking-[0.15em] flex items-center justify-center gap-3 hover:text-rose-400 transition-all border border-transparent hover:border-rose-500/20 italic"
+                  className="py-3 bg-slate-50 text-slate-600 rounded-xl font-black text-[8px] uppercase tracking-[0.15em] flex items-center justify-center gap-3 hover:text-rose-600 transition-all border border-slate-100 hover:border-rose-200 italic"
                 >
                   <RefreshCcw size={12} /> Sync / Reset
                 </button>
@@ -278,22 +278,22 @@ export function ParkinsonScreening({ onResult }) {
           </div>
         </div>
 
-        <div className="bg-[#0a0f1d] p-7 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden">
-            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-2 italic">
-                <Gauge size={14} className="text-sky-400" /> Biometric Monitor
+        <div className="bg-white p-7 rounded-[2.5rem] border border-slate-200 shadow-xl relative overflow-hidden">
+            <h2 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-8 flex items-center gap-2 italic">
+                <Gauge size={14} className="text-sky-600" /> Biometric Monitor
             </h2>
             <div className="grid grid-cols-2 gap-4">
-                 <MiniMetric label="Stability" value={`${liveMetrics.rhythmStability}%`} color="text-amber-400" />
-                 <MiniMetric label="Accuracy" value={`${liveMetrics.accuracy}%`} color={liveMetrics.accuracy > 90 ? 'text-emerald-400' : 'text-rose-400'} />
-                 <MiniMetric label="HT Mean" value={`${liveMetrics.meanHT}ms`} color="text-white" />
-                 <MiniMetric label="Velocity" value={`${liveMetrics.wpm}WPM`} color="text-sky-400" />
+                 <MiniMetric label="Stability" value={`${liveMetrics.rhythmStability}%`} color="text-amber-600" />
+                 <MiniMetric label="Accuracy" value={`${liveMetrics.accuracy}%`} color={liveMetrics.accuracy > 90 ? 'text-emerald-600' : 'text-rose-600'} />
+                 <MiniMetric label="HT Mean" value={`${liveMetrics.meanHT}ms`} color="text-slate-900" />
+                 <MiniMetric label="Velocity" value={`${liveMetrics.wpm}WPM`} color="text-sky-600" />
             </div>
-            <div className="mt-8 pt-8 border-t border-slate-900 flex justify-between items-center opacity-30">
+            <div className="mt-8 pt-8 border-t border-slate-100 flex justify-between items-center opacity-70">
                  <div className="flex items-center gap-2">
-                    <ShieldCheck size={12} className="text-emerald-400" />
-                    <span className="text-[7px] font-black uppercase tracking-widest text-slate-500">AES-256 Native</span>
+                    <ShieldCheck size={12} className="text-emerald-500" />
+                    <span className="text-[7px] font-black uppercase tracking-widest text-slate-600">AES-256 Native</span>
                  </div>
-                 <Lock size={12} className="text-slate-700" />
+                 <Lock size={12} className="text-slate-500" />
             </div>
         </div>
       </div>
@@ -315,27 +315,27 @@ export function ParkinsonScreening({ onResult }) {
           )}
         </div>
 
-        <div className="p-10 bg-slate-950/20 rounded-[3rem] border border-slate-900 h-40 flex items-center justify-center relative overflow-hidden group">
+        <div className="p-10 bg-white rounded-[3rem] border border-slate-200 h-40 flex items-center justify-center relative overflow-hidden group shadow-sm">
              <AnimatePresence mode="wait">
                  {state === 'PROCESSING' ? (
                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-5">
-                         <RefreshCcw size={40} className="text-sky-400 animate-spin" />
-                         <p className="text-white font-black text-[10px] uppercase tracking-[0.4em] italic pl-2">AI Feature Extraction Phase</p>
+                         <RefreshCcw size={40} className="text-sky-600 animate-spin" />
+                         <p className="text-slate-900 font-black text-[10px] uppercase tracking-[0.4em] italic pl-2">AI Feature Extraction Phase</p>
                      </motion.div>
                  ) : state === 'ACTIVE' ? (
                      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-10">
-                         <Activity size={24} className="text-sky-500/20 group-hover:text-sky-400 transition-colors" />
+                         <Activity size={24} className="text-sky-600/20 group-hover:text-sky-600 transition-colors" />
                          <div className="text-center">
-                             <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.5em] italic">Session Integrity: High</p>
-                             <p className="text-slate-700 text-[8px] font-bold uppercase tracking-[0.2em] mt-2 px-6 py-1 border border-slate-900 rounded-full group-hover:border-sky-500/20 transition-all">Validated Hand Protocol v2</p>
+                             <p className="text-slate-600 font-black text-[10px] uppercase tracking-[0.5em] italic">Session Integrity: High</p>
+                             <p className="text-slate-500 text-[8px] font-bold uppercase tracking-[0.2em] mt-2 px-6 py-1 border border-slate-100 rounded-full group-hover:border-sky-500/20 transition-all">Validated Hand Protocol v2</p>
                          </div>
-                         <Fingerprint size={24} className="text-sky-500/20" />
+                         <Fingerprint size={24} className="text-sky-600/20" />
                      </motion.div>
                  ) : (
                      <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-                         <Play size={32} className="text-slate-900 mx-auto mb-4" fill="currentColor" />
-                         <p className="text-slate-700 font-black text-[10px] uppercase tracking-[0.4em] italic mb-2 pl-2">Neural Engine Standby</p>
-                         <div className="h-0.5 w-12 bg-slate-900/50 mx-auto" />
+                         <Play size={32} className="text-slate-200 mx-auto mb-4" fill="currentColor" />
+                         <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.4em] italic mb-2 pl-2">Neural Engine Standby</p>
+                         <div className="h-0.5 w-12 bg-slate-100 mx-auto" />
                      </motion.div>
                  )}
              </AnimatePresence>
@@ -370,8 +370,8 @@ export function ParkinsonScreening({ onResult }) {
 
 function MiniMetric({ label, value, color }) {
     return (
-        <div className="bg-slate-950 p-4 rounded-2xl border border-slate-900 border-dashed group hover:border-slate-800 transition-all flex flex-col justify-center items-center gap-2">
-            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest italic group-hover:text-sky-400 transition-colors">{label}</span>
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 border-dashed group hover:border-slate-200 transition-all flex flex-col justify-center items-center gap-2">
+            <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest italic group-hover:text-sky-600 transition-colors">{label}</span>
             <span className={`text-sm font-black italic tabular-nums ${color}`}>{value}</span>
         </div>
     );

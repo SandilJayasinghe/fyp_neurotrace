@@ -36,10 +36,10 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
   };
 
   return (
-    <div className="flex h-full flex-col justify-center px-6 py-12 lg:px-8 bg-[#0f172a] animate-fade-in relative overflow-hidden">
+    <div className="flex h-full flex-col justify-center px-6 py-12 lg:px-8 bg-[#f8fafc] animate-fade-in relative overflow-hidden">
       {/* Background Orbs */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/10 rounded-full blur-[100px]"></div>
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px]"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-sky-200/20 rounded-full blur-[100px]"></div>
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-200/20 rounded-full blur-[100px]"></div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center">
@@ -47,20 +47,20 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
             <Brain className="w-8 h-8 text-white" />
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold leading-9 tracking-tight text-white">
+        <h2 className="mt-6 text-center text-3xl font-extrabold leading-9 tracking-tight text-slate-900">
           Sign In to Tremora
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-400">
+        <p className="mt-2 text-center text-sm text-slate-800">
           Enter your credentials to access the analytics workspace
         </p>
       </div>
 
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-8 rounded-3xl shadow-2xl shadow-black/50 overflow-hidden relative">
+        <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-xl overflow-hidden relative">
           
           <form className="space-y-6" onSubmit={handleLogin}>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700">
                 Email Address
               </label>
               <div className="mt-2 relative">
@@ -72,22 +72,22 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full rounded-xl border-0 bg-slate-900/50 py-3 pl-11 pr-3 text-white ring-1 ring-inset ring-slate-700 focus:ring-2 focus:ring-inset focus:ring-sky-500 sm:text-sm sm:leading-6 transition-all"
+                  className="block w-full rounded-xl border-0 bg-slate-50 py-3 pl-11 pr-3 text-slate-900 ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-sky-500 sm:text-sm sm:leading-6 transition-all"
                   placeholder="name@example.com"
                 />
-                <Mail className="absolute left-4 top-3.5 w-4 h-4 text-slate-500" />
+                <Mail className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium text-slate-300">
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700">
                   Password
                 </label>
                 <button 
                   type="button"
                   onClick={onToggleReset}
-                  className="text-sm font-semibold text-sky-400 hover:text-sky-300 transition-colors"
+                  className="text-sm font-semibold text-sky-600 hover:text-sky-500 transition-colors"
                 >
                   Forgot password?
                 </button>
@@ -101,10 +101,10 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-xl border-0 bg-slate-900/50 py-3 pl-11 pr-3 text-white ring-1 ring-inset ring-slate-700 focus:ring-2 focus:ring-inset focus:ring-sky-500 sm:text-sm sm:leading-6 transition-all"
+                  className="block w-full rounded-xl border-0 bg-slate-50 py-3 pl-11 pr-3 text-slate-900 ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-sky-500 sm:text-sm sm:leading-6 transition-all"
                   placeholder="••••••••"
                 />
-                <Lock className="absolute left-4 top-3.5 w-4 h-4 text-slate-500" />
+                <Lock className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
               </div>
             </div>
 
@@ -124,11 +124,11 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
             </button>
           </form>
 
-          <p className="mt-8 text-center text-sm text-slate-400">
+          <p className="mt-8 text-center text-sm text-slate-700">
             Don't have an account?{' '}
             <button 
               onClick={onToggleRegister}
-              className="font-semibold leading-6 text-sky-400 hover:text-sky-300 underline-offset-4 hover:underline transition-all"
+              className="font-semibold leading-6 text-sky-600 hover:text-sky-500 underline-offset-4 hover:underline transition-all"
             >
               Register Now
             </button>

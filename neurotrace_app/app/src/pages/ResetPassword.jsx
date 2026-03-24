@@ -36,39 +36,39 @@ function ResetPassword({ onToggleLogin }) {
   };
 
   return (
-    <div className="flex h-screen flex-col justify-center px-6 py-12 lg:px-8 bg-[#0f172a] animate-fade-in relative">
+    <div className="flex h-screen flex-col justify-center px-6 py-12 lg:px-8 bg-[#f8fafc] animate-fade-in relative">
       {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/10 rounded-full blur-[100px]"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-sky-200/20 rounded-full blur-[100px]"></div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <h2 className="text-center text-3xl font-extrabold text-white">Reset Password</h2>
-        <p className="mt-2 text-center text-sm text-slate-400">Securely recover your account access</p>
+        <h2 className="text-center text-3xl font-extrabold text-slate-900">Reset Password</h2>
+        <p className="mt-2 text-center text-sm text-slate-800 italic">Securely recover your account access</p>
       </div>
 
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-8 rounded-3xl shadow-2xl">
+        <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-xl">
           {success ? (
             <div className="text-center py-5">
               <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
                 <Lock className="text-white w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Password Reset Successful!</h3>
-              <p className="text-slate-400">Redirecting to login...</p>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Password Reset Successful!</h3>
+              <p className="text-slate-600">Redirecting to login...</p>
             </div>
           ) : (
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1 ml-1 uppercase tracking-wider text-[10px]">Verify Email Address</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1 ml-1 uppercase tracking-wider text-[10px]">Verify Email Address</label>
                 <div className="relative">
-                  <input required onChange={(e) => setEmail(e.target.value)} className="block w-full rounded-xl bg-slate-900/50 py-3 pl-11 text-white ring-1 ring-slate-700/50 focus:ring-2 focus:ring-sky-500 transition-all text-sm" placeholder="email@example.com" />
-                  <Mail className="absolute left-4 top-3.5 w-4 h-4 text-slate-500" />
+                  <input required onChange={(e) => setEmail(e.target.value)} className="block w-full rounded-xl bg-slate-50 py-3 pl-11 text-slate-900 ring-1 ring-slate-200 focus:ring-2 focus:ring-sky-500 transition-all text-sm" placeholder="email@example.com" />
+                  <Mail className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1 ml-1 uppercase tracking-wider text-[10px]">New Secure Password</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1 ml-1 uppercase tracking-wider text-[10px]">New Secure Password</label>
                 <div className="relative">
-                  <input type="password" required onChange={(e) => setNewPassword(e.target.value)} className="block w-full rounded-xl bg-slate-900/50 py-3 pl-11 text-white ring-1 ring-slate-700/50 focus:ring-2 focus:ring-sky-500 transition-all text-sm" placeholder="••••••••" />
-                  <Lock className="absolute left-4 top-3.5 w-4 h-4 text-slate-500" />
+                  <input type="password" required onChange={(e) => setNewPassword(e.target.value)} className="block w-full rounded-xl bg-slate-50 py-3 pl-11 text-slate-900 ring-1 ring-slate-200 focus:ring-2 focus:ring-sky-500 transition-all text-sm" placeholder="••••••••" />
+                  <Lock className="absolute left-4 top-3.5 w-4 h-4 text-slate-700" />
                 </div>
               </div>
 
@@ -81,7 +81,7 @@ function ResetPassword({ onToggleLogin }) {
           )}
 
           <div className="mt-8 text-center">
-            <button onClick={onToggleLogin} className="flex items-center gap-2 mx-auto text-sm text-slate-400 hover:text-sky-400 transition-colors">
+            <button onClick={onToggleLogin} className="flex items-center gap-2 mx-auto text-sm text-slate-700 hover:text-sky-600 transition-colors">
               <ArrowLeft className="w-3 h-3" /> Back to Log In
             </button>
           </div>

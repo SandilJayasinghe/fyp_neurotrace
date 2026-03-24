@@ -72,9 +72,9 @@ export function HistoryPage({ onBack, onViewResult }) {
     <div className="min-h-screen animate-in fade-in duration-700">
       <button 
         onClick={onBack}
-        className="mb-8 flex items-center gap-2 text-slate-500 hover:text-sky-400 font-black uppercase tracking-[0.2em] text-[10px] transition-all group"
+        className="mb-8 flex items-center gap-2 text-slate-700 hover:text-sky-600 font-black uppercase tracking-[0.2em] text-[10px] transition-all group"
       >
-        <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg group-hover:border-sky-500/30">
+        <div className="p-2 bg-white border border-slate-200 rounded-lg group-hover:border-sky-500/30">
           <ArrowLeft size={14} />
         </div>
         Back to Assessment
@@ -83,14 +83,14 @@ export function HistoryPage({ onBack, onViewResult }) {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
         <div>
           <div className="flex items-center gap-4 mb-2">
-            <div className="p-3 bg-sky-500/10 border border-sky-500/20 rounded-2xl text-sky-400">
+            <div className="p-3 bg-sky-50 border border-sky-100 rounded-2xl text-sky-600">
                 <History size={28} />
             </div>
-            <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">
+            <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">
               Analysis History
             </h1>
           </div>
-          <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[10px] ml-16 italic opacity-70">
+          <p className="text-slate-700 font-black uppercase tracking-[0.3em] text-[10px] ml-16 italic">
             Localized Biometric Records Matrix
           </p>
         </div>
@@ -98,18 +98,18 @@ export function HistoryPage({ onBack, onViewResult }) {
         <div className="flex items-center gap-4">
             <button 
                 onClick={openInFolder}
-                className="flex items-center gap-2 px-5 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-400 font-black text-[10px] uppercase tracking-widest hover:border-sky-500/30 hover:text-sky-400 transition-all shadow-xl"
+                className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 rounded-2xl text-slate-500 font-black text-[10px] uppercase tracking-widest hover:border-sky-500/30 hover:text-sky-600 transition-all shadow-sm"
             >
                 <FolderOpen size={14} /> Open Records Folder
             </button>
             <div className="relative w-80">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-700" size={16} />
                 <input 
                     type="text" 
                     placeholder="Search ID or Date..."
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl py-3.5 pl-12 pr-5 text-xs font-bold text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500/10 focus:border-sky-500/20 transition-all shadow-inner"
+                    className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-12 pr-5 text-xs font-bold text-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/10 focus:border-sky-500/30 transition-all shadow-sm"
                 />
             </div>
         </div>
@@ -127,22 +127,22 @@ export function HistoryPage({ onBack, onViewResult }) {
           
           return (
             <section className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10 animate-in slide-in-from-top duration-500">
-                <StatCard label="Mean Risk Score" value={`${(avgProb * 100).toFixed(1)}%`} sub="Longitudinal Average" color="text-sky-400" />
-                <StatCard label="Average Velocity" value={`${avgWPM.toFixed(0)} WPM`} sub="Typing Speed Mean" color="text-white" />
-                <StatCard label="Consistency" value={`${avgAccuracy.toFixed(1)}%`} sub="Avg. Session Accuracy" color="text-emerald-400" />
-                <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] flex flex-col justify-center">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 italic">Total Dataset</span>
-                    <span className="text-xl font-black text-white italic">{sessions.length} Sessions</span>
+                <StatCard label="Mean Risk Score" value={`${(avgProb * 100).toFixed(1)}%`} sub="Longitudinal Average" color="text-sky-600" />
+                <StatCard label="Average Velocity" value={`${avgWPM.toFixed(0)} WPM`} sub="Typing Speed Mean" color="text-slate-900" />
+                <StatCard label="Consistency" value={`${avgAccuracy.toFixed(1)}%`} sub="Avg. Session Accuracy" color="text-emerald-600" />
+                <div className="bg-white border border-slate-200 p-6 rounded-[2rem] flex flex-col justify-center shadow-sm">
+                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1 italic">Total Dataset</span>
+                    <span className="text-xl font-black text-slate-900 italic">{sessions.length} Sessions</span>
                 </div>
             </section>
           );
       })()}
 
       <main>
-        <div className="bg-[#0a0f1d]/60 backdrop-blur-xl rounded-[2rem] border border-slate-800/50 shadow-2xl overflow-hidden min-h-[400px]">
+        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden min-h-[400px]">
             <table className="w-full border-collapse">
                 <thead>
-                    <tr className="bg-slate-900/30 text-slate-500 text-[9px] font-black uppercase tracking-[0.25em] border-b border-slate-800/50">
+                    <tr className="bg-slate-50 text-slate-600 text-[9px] font-black uppercase tracking-[0.25em] border-b border-slate-100">
                         <th className="px-8 py-7 text-left">Temporal Metric / Instance ID</th>
                         <th className="px-8 py-7 text-center">Diagnostic Verdict</th>
                         <th className="px-8 py-7 text-center">Quality</th>
@@ -151,7 +151,7 @@ export function HistoryPage({ onBack, onViewResult }) {
                         <th className="px-8 py-7 text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/30">
+                <tbody className="divide-y divide-slate-100">
                     {loading ? (
                         <tr><td colSpan="6" className="px-8 py-32 text-center text-slate-500 font-black uppercase tracking-widest text-xs animate-pulse italic">Retrieving secure records...</td></tr>
                     ) : filtered.length === 0 ? (
@@ -168,11 +168,11 @@ export function HistoryPage({ onBack, onViewResult }) {
                             >
                                 <td className="px-8 py-6">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-slate-600 border border-slate-800 group-hover:border-sky-500/20 group-hover:text-sky-500 transition-all">
+                                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 border border-slate-100 group-hover:border-sky-500/20 group-hover:text-sky-600 transition-all">
                                             <Calendar size={18} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-black text-slate-200 tracking-tight">{new Date(s.recorded_at).toLocaleString()}</p>
+                                            <p className="text-sm font-black text-slate-800 tracking-tight">{new Date(s.recorded_at).toLocaleString()}</p>
                                             <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em] mt-0.5 opacity-50">NODE_ID: {s.session_id}</p>
                                         </div>
                                     </div>
@@ -180,7 +180,7 @@ export function HistoryPage({ onBack, onViewResult }) {
                                 <td className="px-8 py-6 text-center">
                                     {s.ai_result ? (
                                         <div className="flex flex-col items-center gap-1">
-                                            <span className={`px-4 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${s.ai_result.probability >= (s.ai_result.threshold_used || 0.65) ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                            <span className={`px-4 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${s.ai_result.probability >= (s.ai_result.threshold_used || 0.65) ? 'bg-rose-50 text-rose-600 border-rose-100 shadow-sm' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
                                                 {s.ai_result.probability >= (s.ai_result.threshold_used || 0.65) ? 'Elevated Signal' : 'Normal Range'}
                                             </span>
                                             <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">{(((s.ai_result?.probability || s.ai_result?.riskLabel || 0) * 100).toFixed(1))}% Score</span>
@@ -190,19 +190,19 @@ export function HistoryPage({ onBack, onViewResult }) {
                                     )}
                                 </td>
                                 <td className="px-8 py-6 text-center">
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${s.accuracy > 85 ? 'text-sky-400' : 'text-slate-500'}`}>
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${s.accuracy > 85 ? 'text-sky-600' : 'text-slate-600'}`}>
                                         {s.accuracy}%
                                     </span>
                                 </td>
-                                <td className="px-8 py-6 text-center text-white font-black text-base tracking-tighter italic">{s.wpm}</td>
+                                <td className="px-8 py-6 text-center text-slate-900 font-black text-base tracking-tighter italic">{s.wpm}</td>
                                 <td className="px-8 py-6 text-center">
                                     <div className="flex items-center justify-center gap-2 text-slate-600 font-bold text-[10px] uppercase tracking-widest">
-                                        <Database size={11} className="opacity-50" /> {s.total_keystrokes}
+                                        <Database size={11} className="opacity-70" /> {s.total_keystrokes}
                                     </div>
                                 </td>
                                 <td className="px-8 py-6 text-right relative z-20">
                                     <div className="flex justify-end gap-2 pr-2">
-                                        <button 
+                                         <button 
                                             onClick={async (e) => {
                                                 e.stopPropagation();
                                                 const data = await window.electron.ipcRenderer.invoke('session:load', { session_id: s.session_id });
@@ -210,19 +210,19 @@ export function HistoryPage({ onBack, onViewResult }) {
                                                   onViewResult(data.ai_result);
                                                 }
                                             }}
-                                            className="p-3 bg-slate-900 border border-slate-800 text-slate-500 hover:text-sky-400 hover:border-sky-500/30 rounded-xl transition-all shadow-lg"
+                                            className="p-3 bg-white border border-slate-200 text-slate-600 hover:text-sky-600 hover:border-sky-500/30 rounded-xl transition-all shadow-sm"
                                             title="View Diagnostic Report"
                                         >
                                             <FileText size={16} />
                                         </button>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); deleteSession(s.session_id); }}
-                                            className="p-3 bg-slate-900 border border-slate-800 text-slate-500 hover:text-rose-400 hover:border-rose-500/30 rounded-xl transition-all shadow-lg"
+                                            className="p-3 bg-white border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-500/30 rounded-xl transition-all shadow-sm"
                                             title="Purge Record"
                                         >
                                             <Trash2 size={16} />
                                         </button>
-                                        <div className="w-8 flex justify-center items-center text-slate-800 group-hover:text-sky-500 group-hover:translate-x-1 transition-all">
+                                        <div className="w-8 flex justify-center items-center text-slate-500 group-hover:text-sky-600 group-hover:translate-x-1 transition-all">
                                             <ArrowRight size={18} />
                                         </div>
                                     </div>
@@ -250,10 +250,10 @@ export function HistoryPage({ onBack, onViewResult }) {
 
 function StatCard({ label, value, sub, color }) {
     return (
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] flex flex-col gap-1 hover:border-sky-500/20 transition-all">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{label}</span>
+        <div className="bg-white border border-slate-200 p-6 rounded-[2rem] flex flex-col gap-1 hover:border-sky-500/20 transition-all shadow-sm">
+            <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic">{label}</span>
             <span className={`text-2xl font-black italic tabular-nums ${color}`}>{value}</span>
-            <span className="text-[9px] font-bold text-slate-700 uppercase tracking-tighter opacity-70 mt-1">{sub}</span>
+            <span className="text-[9px] font-bold text-slate-700 uppercase tracking-tighter mt-1">{sub}</span>
         </div>
     );
 }
