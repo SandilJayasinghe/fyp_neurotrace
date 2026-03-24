@@ -106,7 +106,7 @@ class AIMStudent(Predictor):
     @classmethod
     def load(cls, bundle_path: str) -> 'AIMStudent':
         with open(bundle_path, 'rb') as f:
-            bundle = pickle.load(f)
+            bundle = pickle.load(f)  # nosec: internal model bundle
         return cls(bundle)
 
 # Legacy naming for main.py compatibility

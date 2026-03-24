@@ -55,8 +55,10 @@ def _dfa_alpha(x):
     return float(np.clip(alpha, 0., 2.))
 
 def _perm_entropy_complexity(x, order=3):
-    n = len(x); n_patterns = math.factorial(order)
-    if n < order + 1: return 0.5, 0.0
+    n = len(x)
+    n_patterns = math.factorial(order)
+    if n < order + 1: 
+        return 0.5, 0.0
     x = np.ascontiguousarray(x, dtype=np.float64)
     shape = (n - order + 1, order)
     wins = np.lib.stride_tricks.as_strided(x, shape=shape, strides=(x.strides[0], x.strides[0])).copy()
@@ -64,7 +66,8 @@ def _perm_entropy_complexity(x, order=3):
     powers = np.array([order**i for i in range(order-1, -1, -1)])
     idx = (ranks * powers).sum(axis=1) % n_patterns
     counts = np.bincount(idx, minlength=n_patterns).astype(np.float64)
-    p = counts / counts.sum(); p_nz = p[p > 0]
+    p = counts / counts.sum()
+    p_nz = p[p > 0]
     H = float(np.clip(-np.sum(p_nz * np.log2(p_nz)) / np.log2(n_patterns), 0., 1.))
     def _sh(q):
         q2 = q[q > 0]

@@ -58,9 +58,9 @@ class TeacherEnsemble:
     @classmethod
     def load(cls, bundle_path: str, prep_path: str) -> "TeacherEnsemble":
         with open(bundle_path, 'rb') as f:
-            bundle = pickle.load(f)
+            bundle = pickle.load(f)  # nosec: internal model bundle file
         with open(prep_path, 'rb') as f:
-            prep = pickle.load(f)
+            prep = pickle.load(f)  # nosec: internal preprocessing bundle
         return cls(bundle, prep)
 
     def _raw_proba(self, X: np.ndarray) -> np.ndarray:
