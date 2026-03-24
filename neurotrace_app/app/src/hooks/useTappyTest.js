@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { TAPPY_PROTOCOL } from '../constants/tappyProtocol';
-
-const API = import.meta.env.VITE_API_URL;
+import { apiUrl } from '../config/api';
 
 export function useTappyTest() {
   const [state, setState] = useState('IDLE'); // IDLE | WARMUP | ACTIVE | COMPLETE | PROCESSING | RESULTS
@@ -28,7 +27,7 @@ export function useTappyTest() {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const { data } = await axios.get(`${API}/health`);
+        const { data } = await axios.get(apiUrl('/health'));
         if (data.status === 'ok') {
           setBackendStatus('ONLINE');
           setModelInfo(data);
@@ -95,7 +94,7 @@ export function useTappyTest() {
         detection_method:     bufferData.keyboard?.detection_method ?? 'assumed',
         detection_confidence: bufferData.keyboard?.confidence ?? 'Low',
       };
-      const { data } = await axios.post(`${API}/predict`, payload);
+      const { data } = await axios.post(apiUrl('/predict'), payload);
       
       // Save result to local session store (renderer side for sync)
       const sessionData = {

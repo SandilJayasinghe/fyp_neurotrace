@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { getRandomPrompt } from '../data/typingPrompts';
-
-const API = import.meta.env.VITE_API_URL;
+import { apiUrl } from '../config/api';
 
 export function useTypingTest() {
   // 1. All useState declarations
@@ -140,7 +139,7 @@ export function useTypingTest() {
 
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const { data } = await axios.post(`${API}/predict`, payload, { headers });
+      const { data } = await axios.post(apiUrl('/predict'), payload, { headers });
 
       // Persist session data locally
       if (window.electron?.ipcRenderer) {

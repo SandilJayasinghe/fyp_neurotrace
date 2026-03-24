@@ -17,8 +17,7 @@ import {
 import axios from 'axios';
 import { HistoryChart } from '../components/HistoryChart';
 import { RiskGauge } from '../components/Parkinson/RiskGauge';
-
-const API = 'http://127.0.0.1:8000';
+import { apiUrl } from '../config/api';
 
 export function Dashboard() {
   const [bufferCount, setBufferCount] = useState(0);
@@ -77,7 +76,7 @@ export function Dashboard() {
     setIsAnalysing(true);
     try {
         const buffer = await window.electron.ipcRenderer.invoke('buffer:getSnapshot');
-        const { data } = await axios.post(`${API}/predict`, {
+        const { data } = await axios.post(apiUrl('/predict'), {
             session_id: `passive_${Date.now()}`,
             keystrokes: buffer,
         });

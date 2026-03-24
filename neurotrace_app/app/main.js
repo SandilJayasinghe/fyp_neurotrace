@@ -7,6 +7,7 @@ import { KeystrokeCaptureService } from './src/main/keystroke-capture.js';
 import { detectKeyboard } from './src/main/keyboardDetector.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow = null;
 let captureService = null;
@@ -16,23 +17,8 @@ let keyboardInfo = null;
 const userDataPath = app.getPath('userData');
 const sessionsDir = path.join(userDataPath, 'sessions');
 
-/**
- * Integrated Backend Startup
- */
-function startBackend() {
-    const backendRoot = path.join(__dirname, '..', 'backend');
-    const pythonPath = process.platform === 'win32' ? 'python' : 'python3';
-    
-    backendProcess = spawn(pythonPath, ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000'], {
-        cwd: backendRoot
-    });
-
-    backendProcess.stdout.on('data', (data) => console.log(`[Core] ${data}`));
-    backendProcess.on('close', (code) => console.log(`[Core] Backend exited with code ${code}`));
-}
 
 function createWindow() {
-  const isDev = process.env.NODE_ENV === 'development';
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -47,9 +33,12 @@ function createWindow() {
     backgroundColor: '#ffffff'
   });
 
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+  });
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
-    mainWindow.once('ready-to-show', () => mainWindow.show());
   } else {
     mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   }
@@ -188,7 +177,6 @@ function registerHandlers() {
 
 app.whenReady().then(async () => {
   keyboardInfo = await detectKeyboard();
-  startBackend();
   registerHandlers();
   createWindow();
 });

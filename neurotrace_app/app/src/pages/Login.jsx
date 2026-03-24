@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Brain, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { apiUrl } from '../config/api';
 
 function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
   const [email, setEmail] = useState('');
@@ -13,7 +14,7 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
     setError('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+      const response = await fetch(apiUrl('/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
