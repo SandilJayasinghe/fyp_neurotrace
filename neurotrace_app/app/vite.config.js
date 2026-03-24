@@ -11,12 +11,18 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
+            if (id.includes('recharts')) {
+              return 'recharts';
+            }
+            if (id.includes('framer-motion')) {
+              return 'framer-motion';
+            }
+            if (id.includes('lucide-react')) {
+              return 'lucide';
+            }
             if (
               id.includes('react') ||
               id.includes('react-dom') ||
-              id.includes('framer-motion') ||
-              id.includes('lucide-react') ||
-              id.includes('recharts') ||
               id.includes('axios')
             ) {
               return 'vendor';
@@ -35,6 +41,6 @@ export default defineConfig({
       }
     },
     chunkSizeWarningLimit: 1000,
-    minify: 'true',
+    minify: true,
   }
 })

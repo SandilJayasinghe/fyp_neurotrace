@@ -1,7 +1,8 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { Brain, LogOut, User, Loader2, ShieldCheck, Activity } from 'lucide-react'
-import tremoraBlue from './assets/tremora-blue.png'
+import tremoraBlue from './assets/tremora-blue.webp'
 import { apiUrl } from './config/api'
+import backgroundImg from './assets/background.webp'
 
 // Lazy load pages for performance
 const Login = lazy(() => import('./pages/Login'))
@@ -86,11 +87,24 @@ function App() {
 
   if (!isLoggedIn) {
     return (
-      <Suspense fallback={<div className="min-h-screen bg-[#f8fafc] flex items-center justify-center"><Loader2 className="w-10 h-10 text-sky-500 animate-spin" /></div>}>
-        {authView === 'login' && <Login onLoginSuccess={checkAuthStatus} onToggleRegister={() => setAuthView('register')} onToggleReset={() => setAuthView('reset')} />}
-        {authView === 'register' && <Register onToggleLogin={() => setAuthView('login')} />}
-        {authView === 'reset' && <ResetPassword onToggleLogin={() => setAuthView('login')} />}
-      </Suspense>
+      <div className="relative min-h-[100dvh] bg-slate-900 w-full font-sans">
+        <img 
+          src={backgroundImg} 
+          alt="" 
+          className="absolute inset-0 w-full h-full object-cover z-0" 
+          loading="eager"
+          fetchpriority="high"
+        />
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[1]"></div>
+        
+        <div className="relative z-10 min-h-[100dvh] w-full flex flex-col justify-center">
+          <Suspense fallback={<div className="min-h-[100dvh] flex flex-col items-center justify-center"><Loader2 className="w-10 h-10 text-sky-500 animate-spin" /><span className="text-white mt-4 font-bold tracking-widest text-[10px] uppercase">Loading Auth...</span></div>}>
+            {authView === 'login' && <Login onLoginSuccess={checkAuthStatus} onToggleRegister={() => setAuthView('register')} onToggleReset={() => setAuthView('reset')} />}
+            {authView === 'register' && <Register onToggleLogin={() => setAuthView('login')} />}
+            {authView === 'reset' && <ResetPassword onToggleLogin={() => setAuthView('login')} />}
+          </Suspense>
+        </div>
+      </div>
     )
   }
 

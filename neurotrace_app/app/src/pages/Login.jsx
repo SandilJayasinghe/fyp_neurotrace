@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Brain, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { apiUrl } from '../config/api';
-import logoBlue from '../assets/tremora-blue.png';
-import backgroundImg from '../assets/background.jpeg';
+import logoBlue from '../assets/tremora-blue.webp';
 
 function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
   const [email, setEmail] = useState('');
@@ -39,18 +38,7 @@ function Login({ onLoginSuccess, onToggleRegister, onToggleReset }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8 relative overflow-hidden">
-      {/* Optimized Background Image (LCP Target) */}
-      <img 
-        src={backgroundImg} 
-        alt="" 
-        className="absolute inset-0 w-full h-full object-cover z-0" 
-        loading="eager"
-        fetchpriority="high"
-      />
-      {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[1]"></div>
-
+    <div className="flex w-full flex-col justify-center px-6 lg:px-8 relative">
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center">
           <img src={logoBlue} alt="Tremora Logo" className="w-20 h-20 object-contain" />

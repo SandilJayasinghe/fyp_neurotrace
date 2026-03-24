@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Brain, Lock, Mail, User, Calendar, Loader2 } from 'lucide-react';
 import { apiUrl } from '../config/api';
-import backgroundImg from '../assets/background.jpeg';
 
 function Register({ onToggleLogin }) {
   const [formData, setFormData] = useState({
@@ -78,18 +77,7 @@ function Register({ onToggleLogin }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8 relative overflow-hidden">
-      {/* Optimized Background Image (LCP Target) */}
-      <img 
-        src={backgroundImg} 
-        alt="" 
-        className="absolute inset-0 w-full h-full object-cover z-0" 
-        loading="eager"
-        fetchpriority="high"
-      />
-      {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[1]"></div>
-      
+    <div className="flex w-full flex-col justify-center px-6 lg:px-8 relative z-10">
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
         <h2 className="text-3xl font-extrabold leading-9 tracking-tight text-white mb-2 shadow-sm">Create New Account</h2>
         <p className="text-sm text-white/80 italic mb-8 italic">Join the next generation of neurological assessment</p>

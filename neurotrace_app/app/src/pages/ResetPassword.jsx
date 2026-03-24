@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Loader2, ArrowLeft } from 'lucide-react';
 import { apiUrl } from '../config/api';
-import backgroundImg from '../assets/background.jpeg';
 
 function ResetPassword({ onToggleLogin }) {
   const [email, setEmail] = useState('');
@@ -38,12 +37,8 @@ function ResetPassword({ onToggleLogin }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8 animate-fade-in relative overflow-hidden"
-         style={{ backgroundImage: `url(${backgroundImg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
-      {/* Dark Overlay to ensure readability and cover entire screen */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
-
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+    <div className="flex w-full flex-col justify-center px-6 lg:px-8 relative z-10">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 mt-12">
         <h2 className="text-center text-3xl font-extrabold text-white shadow-sm">Reset Password</h2>
         <p className="mt-2 text-center text-sm text-white/80 italic">Securely recover your account access</p>
       </div>
