@@ -1,4 +1,4 @@
-# 🧠 NeuroTrace — Parkinson's Disease Screening App
+# Tremora (Neurotrace) — Parkinson's Disease Screening App
 
 > A desktop application for early Parkinson's Disease screening using tremor analysis and machine learning, built for students and researchers.
 
