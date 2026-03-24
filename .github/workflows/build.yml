@@ -90,8 +90,7 @@ jobs:
         shell: pwsh
         run: |
           $dist = "neurotrace_app/app/dist"
-          $version = "${{ steps.version.outputs.version_number }}"
-          $targetExe = Join-Path $dist "tremora-$version.exe"
+          $targetExe = Join-Path $dist "tremora-setup.exe"
 
           $installer = Get-ChildItem $dist -Filter "*.exe" |
             Where-Object { $_.Name -notmatch "unins" } |
