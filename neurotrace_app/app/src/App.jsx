@@ -112,46 +112,47 @@ function App() {
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-sky-500/20">
       {/* Cinematic Header */}
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4 cursor-pointer" onClick={handleRestart}>
-             <div className="transition-transform active:scale-90 flex items-center justify-center pointer-events-auto">
-                <img src={tremoraBlue} alt="Tremora Logo" className="w-[3.25rem] h-[3.25rem] object-contain" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={handleRestart}>
+             <div className="transition-transform active:scale-90 flex items-center justify-center">
+                <img src={tremoraBlue} alt="Tremora Logo" className="w-10 h-10 sm:w-[3.25rem] sm:h-[3.25rem] object-contain" />
               </div>
-              <div className="flex flex-col -gap-1">
-                 <span className="text-2xl font-black tracking-tighter text-slate-900 uppercase italic">Tremora</span>
-                 <span className="text-[10px] font-black tracking-[0.3em] text-sky-600 uppercase italic">Analysis Hub</span>
+              <div className="flex flex-col">
+                 <span className="text-xl sm:text-2xl font-black tracking-tighter text-slate-900 uppercase italic leading-none">Tremora</span>
+                 <span className="text-[8px] sm:text-[10px] font-black tracking-[0.2em] sm:tracking-[0.3em] text-sky-600 uppercase italic hidden sm:block">Analysis Hub</span>
               </div>
           </div>
           
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 sm:gap-6 bg-slate-50/50 p-1.5 rounded-2xl border border-slate-100">
             <button 
               onClick={() => setView('assessment')}
-              className={`text-[10px] font-black tracking-widest uppercase transition-all pb-1 border-b-2 ${view === 'assessment' || view === 'results' ? 'text-sky-600 border-sky-600' : 'text-slate-600 border-transparent hover:text-slate-800'}`}
+              className={`px-4 py-2 rounded-xl text-[9px] sm:text-[10px] font-black tracking-widest uppercase transition-all ${view === 'assessment' || view === 'results' ? 'bg-white text-sky-600 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-800'}`}
             >
               Screening
             </button>
             <button 
               onClick={() => setView('history')}
-              className={`text-[10px] font-black tracking-widest uppercase transition-all pb-1 border-b-2 ${view === 'history' ? 'text-sky-600 border-sky-600' : 'text-slate-600 border-transparent hover:text-slate-800'}`}
+              className={`px-4 py-2 rounded-xl text-[9px] sm:text-[10px] font-black tracking-widest uppercase transition-all ${view === 'history' ? 'bg-white text-sky-600 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-800'}`}
             >
-              Analysis History
+              <span className="hidden sm:inline">Analysis </span>History
             </button>
           </div>
           
-          <div className="flex items-center gap-8">
-            <div className="text-right hidden md:block">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none italic">Secure Diagnostic Instance</p>
-                <p className="text-xs font-black text-sky-600 mt-1.5 italic uppercase">{user?.email}</p>
+          <div className="flex items-center gap-2 sm:gap-6 shrink-0">
+            <div className="text-right hidden lg:block">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none italic">Secure Instance</p>
+                <p className="text-[10px] font-black text-sky-600 mt-1 italic uppercase line-clamp-1 max-w-[150px]">{user?.email}</p>
             </div>
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 overflow-hidden shadow-inner">
-                   <User size={18} />
+            <div className="flex items-center gap-2">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shadow-inner">
+                   <User size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </div>
                 <button 
                   onClick={handleLogout}
-                  className="p-3 bg-slate-100 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-slate-200"
+                  className="p-2 sm:p-3 bg-slate-100 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-slate-200"
+                  title="Logout"
                 >
-                  <LogOut className="w-5 h-5" />
+                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
             </div>
           </div>

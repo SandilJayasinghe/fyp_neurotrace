@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld('electron', {
         invoke: (channel, data) => {
             const validChannels = [
                 'capture:start', 'capture:stop', 'capture:getBuffer', 'capture:clear', 
-                'capture:event', 'capture:setTappyMode', 
+                'capture:event', 'capture:setTappyMode', 'capture:getStatus', 
                 'buffer:getSnapshot', 'buffer:getCount', 'buffer:clear',
                 'analysis:save', 'analysis:list',
                 'session:save', 'session:load', 'session:list', 
@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld('electron', {
             return Promise.reject(new Error(`Invalid IPC channel: ${channel}`));
         },
         on: (channel, func) => {
-            const validChannels = ['keystroke-count', 'keystroke-event', 'buffer:update'];
+            const validChannels = ['keystroke-count', 'keystroke-event', 'keystroke-keydown', 'buffer:update'];
             if (validChannels.includes(channel)) {
                 const subscription = (event, ...args) => func(event, ...args);
                 ipcRenderer.on(channel, subscription);

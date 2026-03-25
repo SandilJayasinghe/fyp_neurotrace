@@ -30,6 +30,7 @@ export function ParkinsonScreening({ onResult }) {
     result,
     error,
     isLoading,
+    hardwareStatus,
     canAnalyse,
     startTest,
     analyse,
@@ -217,6 +218,24 @@ export function ParkinsonScreening({ onResult }) {
             ) : (
               <div className="px-4 py-2.5 rounded-xl border border-slate-100 bg-slate-50 text-slate-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
                 <RefreshCcw size={10} className="animate-spin" /> Detecting keyboard...
+              </div>
+            )}
+
+            {hardwareStatus && !hardwareStatus.success && (
+              <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl space-y-2">
+                <div className="flex items-center gap-2 text-rose-600 font-black text-[9px] uppercase tracking-widest">
+                  <AlertCircle size={14} /> Hardware Link Failure
+                </div>
+                <p className="text-[9px] text-rose-700 font-medium leading-relaxed">
+                  The high-precision recorder couldn't start. 
+                  <br /><br />
+                  <b>Possible Fixes:</b>
+                  <ul className="list-disc pl-4 mt-1 space-y-1">
+                    <li>Run Tremora as <b>Administrator</b></li>
+                    <li>Check if Antivirus is blocking the app</li>
+                    <li>Ensure no other high-precision recorders are active</li>
+                  </ul>
+                </p>
               </div>
             )}
 

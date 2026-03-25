@@ -15,11 +15,11 @@ export class KeystrokeCaptureService {
     this.lastKeydown_t = null; 
     this.pendingKeydowns = {}; 
     this.isShiftPressed = false;
-    this.tappyMode = false; // Default to standard typing
+    this.tappyMode = false;
     this.session_id = `session_${Date.now()}_${Math.floor(Math.random()*1e6)}`;
+    this.lastEventTime = 0; // For health check
 
     console.log('[Session] Keystroke listener initialized.');
-    try { uIOhook.stop(); } catch(e) {}
     this.setupListeners();
   }
 
@@ -29,7 +29,9 @@ export class KeystrokeCaptureService {
   
   setupListeners() {
     uIOhook.on('keydown', (event) => {
-      // ALWAYS track shifts, even if not 'capturing' currently, to stay in sync
+      this.lastEventTime = Date.now();
+      console.log(`[uIOhook-Raw] keycode: ${event.keycode} | capturing: ${this.isCapturing}`);
+      
       if (event.keycode === UiohookKey.Shift || event.keycode === UiohookKey.ShiftRight) {
           this.isShiftPressed = true;
           return;
@@ -37,15 +39,12 @@ export class KeystrokeCaptureService {
 
       if (!this.isCapturing) return;
 
-      // Always record all keys, not just mapped ones
       const t_now = Date.now();
       const isNewSession = this.lastKeydown_t !== null && (t_now - this.lastKeydown_t > 10000);
       const latency = (!isNewSession && this.lastKeydown_t !== null) ? (t_now - this.lastKeydown_t) : null;
       const flight = (!isNewSession && this.lastKeyup !== null) ? (t_now - this.lastKeyup.t_up) : null;
 
-      // Try to get readable key from event
       let keyChar = event.keychar || event.rawcode || event.keycode;
-      // If mapping exists, use mapped char, else fallback to keyChar
       const mapping = classifyKey(event.keycode);
       let mappedChar = mapping ? mapping.char : null;
       let hand = mapping ? mapping.hand : null;
@@ -59,37 +58,51 @@ export class KeystrokeCaptureService {
         key: keyChar
       };
       this.lastKeydown_t = t_now;
-      // Diagnostic Log:
-      // console.log(`[Session] Keydown: ${mapping.char} (${mapping.hand})`);
+
+      // Determine the character for UI feedback
+      let finalChar = mappedChar;
+      if (!finalChar) {
+          if (typeof keyChar === 'string') {
+              finalChar = keyChar;
+          } else if (typeof keyChar === 'number' && keyChar > 0) {
+              // Convert uiohook keychar integer to actual character
+              finalChar = String.fromCharCode(keyChar);
+          }
+      }
+
+      if (this.isShiftPressed && finalChar && typeof finalChar === 'string' && finalChar.length === 1) {
+          finalChar = finalChar.toUpperCase();
+      }
+
+      // IMMEDIATE UI FEEDBACK
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('keystroke-keydown', { 
+            char: finalChar,
+            hand: hand || 'Unknown'
+          });
+      }
     });
 
     uIOhook.on('keyup', (event) => {
-      // Debug print for hand classification
+      this.lastEventTime = Date.now();
       let pending = this.pendingKeydowns[event.keycode];
-      if (pending) {
-        console.log('hand classified as:', pending.hand, 'for keycode:', event.keycode);
-      }
       if (event.keycode === UiohookKey.Shift || event.keycode === UiohookKey.ShiftRight) {
         this.isShiftPressed = false;
         return;
       }
-      // Only declare 'pending' once per handler
-      // (already declared above)
       if (!pending) return;
 
       const t_up = Date.now();
       const hold_time = t_up - pending.t_down;
 
       if (this.isCapturing && hold_time >= 0 && hold_time <= 10000) {
-        // Use mapped char if available, else fallback to key
-        let finalChar = pending.char || pending.key;
+        let finalChar = pending.char || (typeof pending.key === 'string' ? pending.key : (typeof pending.key === 'number' && pending.key > 0 ? String.fromCharCode(pending.key) : null));
         if (this.isShiftPressed && finalChar && typeof finalChar === 'string' && finalChar.length === 1) {
             finalChar = finalChar.toUpperCase();
         }
 
-        // Add session_id and datetime
         const payload = {
-          key: this.tappyMode ? pending.hand : finalChar, // Tappy expects 'L'/'R', Typing expects actual char
+          key: this.tappyMode ? pending.hand : finalChar,
           char: finalChar,
           hand: pending.hand,
           hold_time,
@@ -99,7 +112,6 @@ export class KeystrokeCaptureService {
           datetime: new Date(pending.t_down).toISOString(),
         };
 
-        // Emitting events
         if (this.mainWindow && !this.mainWindow.isDestroyed()) {
             this.mainWindow.webContents.send('keystroke-event', payload);
         }
@@ -118,29 +130,43 @@ export class KeystrokeCaptureService {
     console.log(`[Capture] Tappy mode is now ${this.tappyMode ? 'ON' : 'OFF'}`);
   }
 
-  start() {
-    if (this.isCapturing) return;
+  async start() {
+    if (this.isCapturing) return { success: true };
     try {
         console.log('[Session] Starting hardware listener...');
-        // Reset timing state so first keystroke has clean flight/latency baseline
         this.lastKeyup = null;
         this.lastKeydown_t = null;
+        
+        // Ensure clean state
+        try { uIOhook.stop(); } catch(e) {}
+        
         uIOhook.start();
         this.isCapturing = true;
         console.log('[Session] Hardware listener ACTIVE.');
+        return { success: true };
     } catch (e) {
         console.error('[Session Error] Failed to start uIOhook:', e);
+        this.isCapturing = false;
+        return { success: false, error: e.message };
     }
   }
 
   stop() {
-    if (!this.isCapturing) return; // Prevent redundant stops
+    if (!this.isCapturing) return;
     this.isCapturing = false;
     try {
         uIOhook.stop();
         console.log('[Session] Hardware listener STOPPED.');
     } catch (e) {
-        // console.error('[Session Error] Failed to stop uIOhook:', e); // Removed as per instruction
+        console.error('[Session Error] Failed to stop uIOhook:', e);
     }
+  }
+
+  getStatus() {
+    return {
+      isCapturing: this.isCapturing,
+      lastEvent: this.lastEventTime,
+      healthy: (Date.now() - this.lastEventTime < 30000) || !this.isCapturing
+    };
   }
 }

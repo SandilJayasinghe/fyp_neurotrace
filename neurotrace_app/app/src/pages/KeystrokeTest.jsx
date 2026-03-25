@@ -20,7 +20,7 @@ const KeystrokeTest = ({ onFinish }) => {
     analyse,
     reset,
     PROMPT_TEXT: promptText,
-    processKeystroke
+    handleKeyDown: onKeyAction
   } = useTypingTest();
 
   // Keydown handler to process user input
@@ -28,9 +28,8 @@ const KeystrokeTest = ({ onFinish }) => {
     if (state !== 'ACTIVE') return;
     // Only process visible characters and space
     if (e.key.length === 1 || e.key === 'Backspace') {
-      processKeystroke({
+      onKeyAction(null, {
         char: e.key,
-        // Optionally add more fields if needed
       });
       e.preventDefault();
     }

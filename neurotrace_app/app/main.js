@@ -49,7 +49,11 @@ function createWindow() {
   });
 
   if (!captureService) {
+    console.log(`[Main] Initializing captureService with window: ${mainWindow ? 'Valid' : 'Null'}`);
     captureService = new KeystrokeCaptureService(mainWindow);
+  } else {
+    console.log(`[Main] Updating captureService window reference`);
+    captureService.mainWindow = mainWindow;
   }
 }
 
@@ -70,9 +74,16 @@ function registerHandlers() {
   handle('buffer:clear', () => captureService?.clearBuffer());
   
   handle('capture:start', async () => {
-      keyboardInfo = await detectKeyboard();
-      captureService?.start();
-      return true;
+      try {
+        keyboardInfo = await detectKeyboard();
+        const status = await captureService?.start();
+        return status || { success: true };
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+  });
+  handle('capture:getStatus', () => {
+      return captureService?.getStatus() || { healthy: false, isCapturing: false };
   });
   handle('capture:stop', () => {
       captureService?.stop();

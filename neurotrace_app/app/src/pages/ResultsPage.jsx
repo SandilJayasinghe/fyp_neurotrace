@@ -229,27 +229,27 @@ export default function ResultsPage({ result, user, onRestart }) {
         </button>
       </div>
       
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 italic tracking-tighter uppercase">Analysis Report</h1>
-          <p className="text-slate-600 text-xs font-bold uppercase tracking-widest mt-1">{timestamp}</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 italic tracking-tighter uppercase">Analysis Report</h1>
+          <p className="text-slate-600 text-[10px] sm:text-xs font-bold uppercase tracking-widest mt-1">{timestamp}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm font-bold text-slate-700 mr-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 hidden sm:block">{user?.email || 'user@tremora.dev'}</span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
+          <span className="text-[10px] sm:text-sm font-bold text-slate-700 mr-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 hidden sm:block">{user?.email || 'user@tremora.dev'}</span>
           <button 
             type="button"
             onClick={handleDownloadReport}
             disabled={isDownloading}
-            className="px-6 py-3 bg-slate-100 border-slate-200 text-slate-700 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-200 transition-colors uppercase tracking-widest text-[10px] disabled:opacity-50 disabled:cursor-wait"
+            className="flex-1 sm:flex-none px-4 sm:px-6 py-3 bg-slate-100 border-slate-200 text-slate-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors uppercase tracking-widest text-[9px] sm:text-[10px] disabled:opacity-50 disabled:cursor-wait"
           >
             <FileText size={14} />
-            {isDownloading ? 'Generating...' : 'Download Report'}
+            {isDownloading ? '...' : 'PDF'}
           </button>
           <button 
             onClick={onRestart}
-            className="px-6 py-3 bg-sky-600 text-white rounded-xl font-black flex items-center gap-2 hover:bg-sky-500 transition-transform hover:scale-105 active:scale-95 shadow-[0_4px_12px_rgba(14,165,233,0.3)] uppercase tracking-widest text-[10px]"
+            className="flex-1 sm:flex-none px-4 sm:px-6 py-3 bg-sky-600 text-white rounded-xl font-black flex items-center justify-center gap-2 hover:bg-sky-500 transition-transform hover:scale-105 active:scale-95 shadow-[0_4px_12px_rgba(14,165,233,0.3)] uppercase tracking-widest text-[9px] sm:text-[10px]"
           >
-            Test Again <RefreshCcw size={14} />
+            Restart <RefreshCcw size={14} />
           </button>
         </div>
       </header>
@@ -257,7 +257,7 @@ export default function ResultsPage({ result, user, onRestart }) {
       <div className="space-y-6">
         
         <section className="flex flex-col lg:flex-row items-stretch gap-6">
-          <div className="w-full lg:w-[40%] bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-xl flex flex-col gap-8 justify-center relative overflow-hidden">
+          <div className="w-full lg:w-[40%] bg-white border border-slate-200 p-6 sm:p-8 rounded-[2.5rem] shadow-xl flex flex-col gap-8 justify-center relative overflow-hidden">
             <div className="absolute top-[-50%] left-[-50%] w-full h-full bg-sky-200/20 blur-[100px] rounded-full pointer-events-none" />
             
             <div className={`z-10 bg-slate-50/50 rounded-[2rem] p-4 mx-auto w-full max-w-sm flex items-center justify-center min-h-[250px]`}>

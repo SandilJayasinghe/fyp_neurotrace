@@ -34,17 +34,17 @@ import { Keyboard, Activity, Info, ShieldCheck } from 'lucide-react';
 
             let className;
             if (isCurrent) {
-              className = "text-sky-600 border-b-[3px] border-sky-400 pb-1 shadow-[0_4px_6px_-1px_rgba(14,165,233,0.1)]";
+              className = "text-sky-600 border-b-[3px] border-sky-400 pb-1 bg-sky-50/50";
             } else if (status === 'correct') {
               className = "text-slate-900";
             } else if (status === 'incorrect') {
-              className = "text-rose-500";
+              className = "text-rose-500 font-bold";
             } else {
               className = "text-slate-400";
             }
 
             return (
-              <span key={i} className={`${className} inline transition-colors duration-200`}>
+              <span key={i} className={`${className} inline`}>
                 {char === ' ' ? '\u00A0' : char}
               </span>
             );

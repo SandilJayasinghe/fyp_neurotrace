@@ -80,29 +80,29 @@ export function HistoryPage({ onBack, onViewResult }) {
         Back to Assessment
       </button>
 
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12 px-2">
         <div>
           <div className="flex items-center gap-4 mb-2">
-            <div className="p-3 bg-sky-50 border border-sky-100 rounded-2xl text-sky-600">
+            <div className="p-3 bg-sky-50 border border-sky-100 rounded-2xl text-sky-600 shrink-0">
                 <History size={28} />
             </div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tighter uppercase italic truncate">
               Analysis History
             </h1>
           </div>
-          <p className="text-slate-700 font-black uppercase tracking-[0.3em] text-[10px] ml-16 italic">
+          <p className="text-slate-700 font-black uppercase tracking-[0.3em] text-[8px] sm:text-[10px] sm:ml-16 italic opacity-70">
             Localized Biometric Records Matrix
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
             <button 
                 onClick={openInFolder}
-                className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 rounded-2xl text-slate-500 font-black text-[10px] uppercase tracking-widest hover:border-sky-500/30 hover:text-sky-600 transition-all shadow-sm"
+                className="flex items-center justify-center gap-2 px-5 py-3 bg-white border border-slate-200 rounded-2xl text-slate-500 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:border-sky-500/30 hover:text-sky-600 transition-all shadow-sm shrink-0"
             >
-                <FolderOpen size={14} /> Open Records Folder
+                <FolderOpen size={14} /> <span className="hidden sm:inline">Open </span>Records Folder
             </button>
-            <div className="relative w-80">
+            <div className="relative w-full sm:w-[280px]">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-700" size={16} />
                 <input 
                     type="text" 
@@ -113,7 +113,7 @@ export function HistoryPage({ onBack, onViewResult }) {
                 />
             </div>
         </div>
-      </header>
+      </div>
       {/* SECTION: Mean Average Statistics (New Step 10 Implementation) */}
       {!loading && sessions.length > 0 && (() => {
           const validProbs = sessions.map(s => Number(s.ai_result?.probability || s.ai_result?.riskLabel || 0)).filter(v => v > 0);
@@ -138,9 +138,9 @@ export function HistoryPage({ onBack, onViewResult }) {
           );
       })()}
 
-      <main>
-        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden min-h-[400px]">
-            <table className="w-full border-collapse">
+      <main className="max-w-full overflow-hidden">
+        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-x-auto min-h-[400px]">
+            <table className="w-full border-collapse min-w-[800px]">
                 <thead>
                     <tr className="bg-slate-50 text-slate-600 text-[9px] font-black uppercase tracking-[0.25em] border-b border-slate-100">
                         <th className="px-8 py-7 text-left">Temporal Metric / Instance ID</th>
