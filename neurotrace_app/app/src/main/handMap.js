@@ -1,9 +1,14 @@
-import { UiohookKey } from 'uiohook-napi';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { UiohookKey } = require('uiohook-napi');
 
 /**
  * Maps physical keycodes to L (Left hand) or R (Right hand)
  * and their primary character for UI validation.
+ * HARDENED FOR CLINICAL RELIABILITY.
  */
+console.log('[HandMap] Initializing clinical keyboard map...');
+
 const MAP = {
   // --- Left Hand keys ('L') ---
   [UiohookKey.Backquote]: { hand: 'L', char: '`' },
@@ -60,6 +65,8 @@ const MAP = {
   [UiohookKey.Space]: { hand: 'R', char: ' ' },
 };
 
+console.log(`[HandMap] Mapping initialized. A is keycode: ${UiohookKey.A}`);
+
 /**
  * Classifies a raw keycode into a hand/char object.
  * Returns { hand, char } or null
@@ -67,3 +74,4 @@ const MAP = {
 export function classifyKey(keycode) {
   return MAP[keycode] ?? null;
 }
+

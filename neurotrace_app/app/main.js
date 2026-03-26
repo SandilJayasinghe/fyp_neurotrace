@@ -76,8 +76,12 @@ function registerHandlers() {
   handle('capture:start', async () => {
       try {
         keyboardInfo = await detectKeyboard();
-        const status = await captureService?.start();
-        return status || { success: true };
+        const startResult = await captureService?.start();
+        return { 
+          ...(startResult || { success: true }), 
+          keyboard_name: keyboardInfo?.keyboard_name || "Standard HID",
+          polling_hz: keyboardInfo?.polling_hz || 125 
+        };
       } catch (e) {
         return { success: false, error: e.message };
       }

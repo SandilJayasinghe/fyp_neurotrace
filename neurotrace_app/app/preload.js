@@ -28,7 +28,10 @@ contextBridge.exposeInMainWorld('electron', {
         on: (channel, func) => {
             const validChannels = ['keystroke-count', 'keystroke-event', 'keystroke-keydown', 'buffer:update'];
             if (validChannels.includes(channel)) {
-                const subscription = (event, ...args) => func(event, ...args);
+                const subscription = (event, ...args) => {
+                    console.log(`[Preload] IPC Inbound: ${channel}`, args[0]);
+                    func(event, ...args);
+                };
                 ipcRenderer.on(channel, subscription);
                 return () => ipcRenderer.removeListener(channel, subscription);
             }
