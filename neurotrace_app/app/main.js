@@ -116,7 +116,11 @@ function registerHandlers() {
       const printWin = new BrowserWindow({
         width: 1000, height: 1300,
         show: false,
-        webPreferences: { nodeIntegration: false, contextIsolation: true },
+        webPreferences: { 
+            nodeIntegration: false, 
+            contextIsolation: true, 
+            webSecurity: false // Load local images
+        },
       });
 
       // Load via file:// protocol for reliable rendering

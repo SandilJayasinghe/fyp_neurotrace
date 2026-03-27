@@ -40,6 +40,7 @@ class FeatureDetail(BaseModel):
     importance: float
     pct: float
     value: float
+    raw_value: float = 0.0
     direction: str
 
 # Class 8 — DiagnosticReport (Response wrapper)

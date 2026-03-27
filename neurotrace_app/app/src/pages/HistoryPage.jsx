@@ -119,7 +119,9 @@ export function HistoryPage({ onBack, onViewResult }) {
           const validProbs = sessions.map(s => Number(s.ai_result?.probability || s.ai_result?.riskLabel || 0)).filter(v => v > 0);
           const avgProb = validProbs.length > 0 ? (validProbs.reduce((a, b) => a + b, 0) / validProbs.length) : 0;
           
-          const validWPMs = sessions.map(s => Number(s.summary?.wpm || s.wpm || 0)).filter(v => v > 0);
+          const validWPMs = sessions
+            .map(s => Number(s.summary?.wpm || s.wpm || 0))
+            .filter(v => v > 0 && v < 250); // Ignore impossible outliers (>250WPM)
           const avgWPM = validWPMs.length > 0 ? (validWPMs.reduce((a, b) => a + b, 0) / validWPMs.length) : 0;
           
           const validAccs = sessions.map(s => Number(s.summary?.accuracy || s.accuracy || 0)).filter(v => v > 0);

@@ -138,13 +138,15 @@ export function useTypingTest() {
       const { data } = await axios.post(apiUrl('/predict'), payload, { headers });
 
       if (window.electron?.ipcRenderer) {
+        const wpmVal = data.all_features?.find(f => f.name.toLowerCase() === 'wpm')?.raw_value || 0;
         const sessionData = {
           session_id: sessionId.current,
           recorded_at: new Date().toISOString(),
           summary: {
             total_keystrokes: keystrokeBuffer.current.length,
             accuracy: Math.round((validCountRef.current / (validCountRef.current + errorCountRef.current || 1)) * 100),
-            keyboard: payload.keyboard_name
+            keyboard: payload.keyboard_name,
+            wpm: Math.round(wpmVal)
           },
           keystrokes: keystrokeBuffer.current,
           ai_result: data,
@@ -211,7 +213,19 @@ export function useTypingTest() {
       validCount,
       errorCount,
       meanHT: metricsWindow.current.length ? Math.round(metricsWindow.current.reduce((a, b) => a + (b.hold_time||0), 0) / metricsWindow.current.length) : 0,
-      wpm: startTime.current ? Math.round((validCount / 5) / ((Date.now() - startTime.current) / 60000)) : 0
+      wpm: (() => {
+        if (validCount === 0) return 0;
+        let durationMs = startTime.current ? (Date.now() - startTime.current) : 0;
+        // If duration is too small or missing (e.g. upload), try buffer timestamps
+        if (durationMs < 1000 && keystrokeBuffer.current.length > 10) {
+          const first = keystrokeBuffer.current[0].timeStamp || 0;
+          const last = keystrokeBuffer.current[keystrokeBuffer.current.length - 1].timeStamp || 0;
+          durationMs = last - first;
+        }
+        if (durationMs < 1000) return 0;
+        const wpm = (validCount / 5) / (durationMs / 60000);
+        return Math.min(Math.round(wpm), 200); // Caps at 200 to avoid outliers
+      })()
     };
   }, [typingStats]);
 

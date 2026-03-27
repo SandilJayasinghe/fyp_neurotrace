@@ -48,7 +48,7 @@ export default function ResultsPage({ result, user, onRestart }) {
     if (!window.electron?.ipcRenderer) return;
     setIsDownloading(true);
     try {
-      const html = generateReportHTML(result);
+      const html = generateReportHTML(result, sessionHistory);
       const response = await window.electron.ipcRenderer.invoke('report:savePDF', html);
       if (response?.success) {
         console.log('[Report] Saved to:', response.filePath);

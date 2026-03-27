@@ -400,7 +400,7 @@ AIM_BUNDLE = None
 METADATA = {}
 AIM_MODEL = None
 
-def _extract_top_features(X_scaled: np.ndarray, aim_meta: dict, scaler_center: list) -> tuple:
+def _extract_top_features(X_scaled: np.ndarray, aim_meta: dict, scaler_center: list, X_raw: np.ndarray = None) -> tuple:
     aim_feat_names = aim_meta.get('input_feature_names', [])
     aim_top_features = aim_meta.get('top5_features', [])
     n_scaled_cols = X_scaled.shape[1]
@@ -410,11 +410,13 @@ def _extract_top_features(X_scaled: np.ndarray, aim_meta: dict, scaler_center: l
         name = aim_feat_names[i] if i < len(aim_feat_names) else f"feature_{i}"
         try:
             xv = X_scaled[0, i]
+            rv = X_raw[0, i] if X_raw is not None and i < X_raw.shape[1] else 0.0
             cv = scaler_center[i] if i < len(scaler_center) else 0.0
             val = float(xv) if xv is not None else 0.0
+            raw_val = float(rv) if rv is not None else 0.0
             center_val = float(cv) if cv is not None else 0.0
             
-            importance = 0.01  # Default minimal importance
+            importance = 0.01
             for feat, imp in aim_top_features:
                 if feat == name:
                     importance = float(imp)
@@ -426,6 +428,7 @@ def _extract_top_features(X_scaled: np.ndarray, aim_meta: dict, scaler_center: l
                 importance=importance,
                 pct=importance * 100.0,
                 value=val,
+                raw_value=raw_val,
                 direction="UP" if val > center_val else "DOWN"
             ))
         except (IndexError, TypeError, ValueError):
@@ -505,7 +508,7 @@ async def predict(request: PredictRequest, current_user: User = Depends(user_rou
         
         aim_meta = METADATA.get('student_aim', {}) if METADATA else {}
         scaler_center = PREP['scaler'].center_ if hasattr(PREP['scaler'], 'center_') else []
-        all_f_objects, top_5, top_factor_names = _extract_top_features(X_scaled, aim_meta, scaler_center)
+        all_f_objects, top_5, top_factor_names = _extract_top_features(X_scaled, aim_meta, scaler_center, X_raw)
 
         # 13. Contextual metadata
         print("[PREDICT] Step 13: Contextual metadata")
