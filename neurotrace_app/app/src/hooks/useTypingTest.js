@@ -209,10 +209,19 @@ export function useTypingTest() {
   const liveMetrics = useMemo(() => {
     const total = validCount + errorCount;
     return {
-      accuracy: total > 0 ? Math.round((validCount / total) * 100) : 100,
+      accuracy: total > 0 ? Math.round((validCount / total) * 100) : 0,
       validCount,
       errorCount,
       meanHT: metricsWindow.current.length ? Math.round(metricsWindow.current.reduce((a, b) => a + (b.hold_time||0), 0) / metricsWindow.current.length) : 0,
+      rhythmStability: (() => {
+        if (metricsWindow.current.length < 5) return 0; // Return 0 until data exists
+        const hts = metricsWindow.current.map(m => m.hold_time || 0);
+        const mean = hts.reduce((a, b) => a + b, 0) / hts.length;
+        const variance = hts.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / hts.length;
+        const std = Math.sqrt(variance);
+        const cv = std / (mean || 1);
+        return Math.min(Math.max(Math.round(100 - (cv * 100)), 40), 99);
+      })(),
       wpm: (() => {
         if (validCount === 0) return 0;
         let durationMs = startTime.current ? (Date.now() - startTime.current) : 0;
