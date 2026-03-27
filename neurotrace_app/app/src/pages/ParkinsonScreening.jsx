@@ -35,6 +35,8 @@ export function ParkinsonScreening({ onResult }) {
     startTest,
     analyse,
     reset,
+    loadExternalData,
+    keystrokes,
     PROMPT_TEXT
   } = useTypingTest();
 
@@ -44,7 +46,6 @@ export function ParkinsonScreening({ onResult }) {
   const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef();
   const token = localStorage.getItem('token');
-  const [uploadTriggered, setUploadTriggered] = useState(false);
   const [pendingAnalyse, setPendingAnalyse] = useState(false);
 
   useEffect(() => {
@@ -61,12 +62,6 @@ export function ParkinsonScreening({ onResult }) {
     }
   }, [result, onResult, error]);
 
-  useEffect(() => {
-    if (uploadTriggered && result && onResult) {
-      setUploadTriggered(false);
-      onResult(result);
-    }
-  }, [uploadTriggered, result, onResult]);
 
   useEffect(() => {
     if (pendingAnalyse && validCount >= 150) {
@@ -87,7 +82,6 @@ export function ParkinsonScreening({ onResult }) {
     }
   }, [state]);
 
-  const rawBuffer = JSON.parse(localStorage.getItem('temp_buffer') || '[]');
   
   const handleConfirmIntegrity = async () => {
     setShowExplorer(false);
@@ -100,56 +94,74 @@ export function ParkinsonScreening({ onResult }) {
     if (!file) return;
     setUploading(true);
     try {
-      let keystrokes = [];
-      if (file.name.endsWith('.json')) {
-        const text = await file.text();
-        keystrokes = JSON.parse(text);
-      } else if (file.name.endsWith('.csv')) {
-        const text = await file.text();
-        const lines = text.trim().split(/\r?\n/);
-        const headers = lines[0].split(',');
-        keystrokes = lines.slice(1).map(line => {
-          const vals = line.split(',');
+      const text = await file.text();
+      let rawData = [];
+      
+      if (file.name.toLowerCase().endsWith('.json')) {
+        rawData = JSON.parse(text);
+      } else {
+        // Advanced CSV/TSV parsing
+        const lines = text.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length < 2) throw new Error('File is empty or missing headers');
+        
+        const delimiter = lines[0].includes(';') ? ';' : lines[0].includes('\t') ? '\t' : ',';
+        const strip = s => (s || '').trim().replace(/^["']|["']$/g, '');
+        const headers = lines[0].split(delimiter).map(strip);
+        
+        rawData = lines.slice(1).map(line => {
+          const vals = line.split(delimiter).map(strip);
           const obj = {};
-          headers.forEach((h, i) => { obj[h.trim()] = vals[i]; });
+          headers.forEach((h, i) => { if (vals[i] !== undefined) obj[h] = vals[i]; });
           return obj;
         });
-      } else {
-        setUploadError('Unsupported file type. Use .json or .csv');
-        setUploading(false);
-        return;
       }
 
-      const cleaned = keystrokes
-        .map((k) => {
-          let keyVal = k.key || k.keyId || '';
-          let key = typeof keyVal === 'string' ? keyVal : String(keyVal);
-          let hold_time = parseFloat(k.hold_time);
-          let flight_time = k.flight_time === null || k.flight_time === undefined || k.flight_time === '' || k.flight_time === 'null' ? null : parseFloat(k.flight_time);
-          let latency = k.latency === null || k.latency === undefined || k.latency === '' || k.latency === 'null' ? null : parseFloat(k.latency);
-          
-          if (!(hold_time >= 0 && hold_time <= 10000)) return null;
-          if (flight_time !== null && !isNaN(flight_time) && (flight_time < -5000 || flight_time > 20000)) return null;
-          if (latency !== null && !isNaN(latency) && (latency < 0 || latency > 20000)) return null;
-          
-          return { keyId: key, hold_time, flight_time: isNaN(flight_time) ? null : flight_time, latency: isNaN(latency) ? null : latency };
-        })
-        .filter(Boolean);
+      if (!Array.isArray(rawData)) {
+        if (typeof rawData === 'object' && rawData !== null) rawData = [rawData];
+        else throw new Error('Invalid data format');
+      }
+
+      // Helper for fuzzy header matching
+      const getVal = (row, patterns) => {
+        const key = Object.keys(row).find(k => {
+          const norm = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return patterns.some(p => norm === p || norm.includes(p));
+        });
+        return key ? row[key] : null;
+      };
+
+      const cleaned = rawData.map(row => {
+        const keyVal = getVal(row, ['keyid', 'key', 'char', 'hand', 'character']) || 'Unknown';
+        const htVal = getVal(row, ['holdtime', 'ht', 'hold', 'duration']);
+        const ftVal = getVal(row, ['flighttime', 'ft', 'iki', 'interkey', 'flight']);
+        const latVal = getVal(row, ['latency', 'lat']);
+        
+        const ht = parseFloat(htVal);
+        if (isNaN(ht) || ht <= 0 || ht > 10000) return null;
+
+        return {
+          keyId: String(keyVal),
+          hold_time: ht,
+          flight_time: (ftVal !== null && ftVal !== '') ? parseFloat(ftVal) : null,
+          latency: (latVal !== null && latVal !== '') ? parseFloat(latVal) : null,
+          type: row.type || row.hand || 'Unknown'
+        };
+      }).filter(Boolean);
+
+      console.log(`[Upload] Parsed ${rawData.length} rows, ${cleaned.length} valid points.`);
+
       if (cleaned.length < 150) {
-        setUploadError('File must contain at least 150 valid keystrokes (L/R, valid times).');
-        setUploading(false);
-        return;
+        throw new Error(`Insufficient valid data. Found only ${cleaned.length} valid points after filtering (need 150). Make sure your CSV has headers like "hold_time" or "HT".`);
       }
-      localStorage.setItem('temp_buffer', JSON.stringify(cleaned));
-      if (typeof window !== 'undefined' && window.dispatchEvent) {
-        window.dispatchEvent(new CustomEvent('setValidCount', { detail: cleaned.length }));
-      }
-      setUploadTriggered(true);
+
+      loadExternalData(cleaned);
       setPendingAnalyse(true);
     } catch (err) {
-      setUploadError('Failed to parse file: ' + err.message);
+      console.error('Upload error:', err);
+      setUploadError('Upload Failed: ' + err.message);
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
   // MOVE ERROR CHECK HERE - AFTER ALL HOOKS
@@ -375,7 +387,7 @@ export function ParkinsonScreening({ onResult }) {
       <AnimatePresence>
         {showExplorer && (
             <MetricsVisualizer 
-                keystrokes={rawBuffer} 
+                keystrokes={keystrokes} 
                 stats={liveMetrics} 
                 canAnalyse={canAnalyse}
                 onClose={() => setShowExplorer(false)} 

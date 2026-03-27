@@ -238,6 +238,49 @@ export function useTypingTest() {
     };
   }, [typingStats]);
 
+  const loadExternalData = useCallback((data) => {
+    if (!Array.isArray(data)) return;
+    
+    // 1. Map to internal schema
+    const mapped = data.map(k => ({
+      keyId: String(k.keyId || k.key || k.char || ''),
+      type: k.type || k.hand || 'Unknown',
+      hold_time: parseFloat(k.hold_time) || 0,
+      flight_time: k.flight_time !== undefined && k.flight_time !== null ? parseFloat(k.flight_time) : null,
+      latency: k.latency !== undefined && k.latency !== null ? parseFloat(k.latency) : null,
+      timeStamp: Number(k.timeStamp || k.keydown_ts || k.timestamp || Date.now()),
+      overlap: !!k.overlap,
+      modifiers: k.modifiers || {}
+    }));
+
+    // 2. Clear and update buffer
+    keystrokeBuffer.current = mapped;
+    validCountRef.current = mapped.length;
+    errorCountRef.current = data.filter(k => k.status === 'incorrect').length;
+    
+    // 3. Update stats state
+    setTypingStats(prev => ({
+      ...prev,
+      validCount: validCountRef.current,
+      errorCount: errorCountRef.current,
+      cursor: 0,
+      charStatuses: []
+    }));
+
+    // 4. Populate metrics window for visualization
+    metricsWindow.current = mapped.slice(-50);
+    
+    // 5. Set session metadata if missing
+    if (!sessionId.current) sessionId.current = `upload_${Date.now()}`;
+    if (!startTime.current && mapped.length > 0) {
+      startTime.current = mapped[0].timeStamp;
+    }
+
+    setState('IDLE');
+    setResult(null);
+    setError(null);
+  }, []);
+
   return {
     state,
     cursor,
@@ -253,7 +296,11 @@ export function useTypingTest() {
     startTest,
     analyse,
     reset,
+    loadExternalData,
+    keystrokes: keystrokeBuffer.current,
     PROMPT_TEXT: currentPrompt,
   };
 }
+
+
 

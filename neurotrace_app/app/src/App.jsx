@@ -93,7 +93,7 @@ function App() {
           alt="" 
           className="absolute inset-0 w-full h-full object-cover z-0" 
           loading="eager"
-          fetchpriority="high"
+          fetchPriority="high"
         />
         <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[1]"></div>
         

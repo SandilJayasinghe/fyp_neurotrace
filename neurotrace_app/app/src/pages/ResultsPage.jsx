@@ -74,35 +74,53 @@ export default function ResultsPage({ result, user, onRestart }) {
     if (!file) return;
     setUploading(true);
     try {
-      let keystrokes = [];
-      if (file.name.endsWith('.json')) {
-        const text = await file.text();
-        keystrokes = JSON.parse(text);
-      } else if (file.name.endsWith('.csv')) {
-        const text = await file.text();
-        const lines = text.trim().split(/\r?\n/);
-        const headers = lines[0].split(',');
-        keystrokes = lines.slice(1).map(line => {
-          const vals = line.split(',');
+      const text = await file.text();
+      let rawData = [];
+      
+      if (file.name.toLowerCase().endsWith('.json')) {
+        rawData = JSON.parse(text);
+      } else {
+        const lines = text.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length < 2) throw new Error('File is empty or missing headers');
+        const delimiter = lines[0].includes(';') ? ';' : lines[0].includes('\t') ? '\t' : ',';
+        const strip = s => (s || '').trim().replace(/^["']|["']$/g, '');
+        const headers = lines[0].split(delimiter).map(strip);
+        rawData = lines.slice(1).map(line => {
+          const vals = line.split(delimiter).map(strip);
           const obj = {};
-          headers.forEach((h, i) => { obj[h.trim()] = vals[i]; });
+          headers.forEach((h, i) => { if (vals[i] !== undefined) obj[h] = vals[i]; });
           return obj;
         });
-      } else {
-        setUploadError('Unsupported file type. Use .json or .csv');
-        setUploading(false);
-        return;
       }
-      // Save to localStorage for compatibility
-      localStorage.setItem('temp_buffer', JSON.stringify(keystrokes));
-      setRawBuffer(keystrokes);
-      // Trigger analysis (simulate test completion)
+
+      const getVal = (row, patterns) => {
+        const key = Object.keys(row).find(k => patterns.some(p => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(p)));
+        return key ? row[key] : null;
+      };
+
+      const cleaned = rawData.map(row => {
+        const ht = parseFloat(getVal(row, ['holdtime', 'ht', 'hold', 'duration']) || 0);
+        if (isNaN(ht) || ht <= 0 || ht > 10000) return null;
+        return {
+          keyId: String(getVal(row, ['keyid', 'key', 'char', 'hand', 'character']) || 'Unknown'),
+          hold_time: ht,
+          flight_time: parseFloat(getVal(row, ['flighttime', 'ft', 'iki', 'interkey', 'flight'])),
+          latency: parseFloat(getVal(row, ['latency', 'lat'])),
+        };
+      }).filter(Boolean);
+
+      if (cleaned.length < 150) throw new Error('Insufficient points');
+
+      // Re-use logic: save and reload (or better, use a callback if available)
+      localStorage.setItem('temp_buffer', JSON.stringify(cleaned));
+      setRawBuffer(cleaned);
       window.location.reload();
     } catch (err) {
       setUploadError('Failed to parse file: ' + err.message);
     }
     setUploading(false);
   };
+
 
   // Download helpers
   const downloadBuffer = (type = 'json') => {
@@ -444,7 +462,7 @@ export default function ResultsPage({ result, user, onRestart }) {
                     </div>
                     {sessionHistory.length >= 2 && (
                       <div className="h-16 w-full opacity-70 hover:opacity-100 transition-opacity">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                           <AreaChart data={sessionHistory.slice(-10).map((s, idx) => ({ 
                              name: `S${idx+1}`, 
                              prob: (typeof s.probability === 'number' ? s.probability : (parseFloat(s.probability) || 0)) * 100 
@@ -553,7 +571,7 @@ export default function ResultsPage({ result, user, onRestart }) {
           </div>
 
           <div className="w-full h-80 mb-10 overflow-hidden bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-center p-4">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <RadarChart 
                 cx="50%" cy="50%" outerRadius="75%" 
                 data={result.top5_features?.map(feat => {
@@ -731,7 +749,7 @@ export default function ResultsPage({ result, user, onRestart }) {
                     
                     return barData.length > 0 ? (
                       <div className="h-[400px] w-full mt-4 pr-6">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                           <BarChart data={barData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                             <XAxis type="number" stroke="#94a3b8" tickFormatter={(v) => `${v}%`} />

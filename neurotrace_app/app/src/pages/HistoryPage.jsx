@@ -96,12 +96,6 @@ export function HistoryPage({ onBack, onViewResult }) {
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
-            <button 
-                onClick={openInFolder}
-                className="flex items-center justify-center gap-2 px-5 py-3 bg-white border border-slate-200 rounded-2xl text-slate-500 font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:border-sky-500/30 hover:text-sky-600 transition-all shadow-sm shrink-0"
-            >
-                <FolderOpen size={14} /> <span className="hidden sm:inline">Open </span>Records Folder
-            </button>
             <div className="relative w-full sm:w-[280px]">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-700" size={16} />
                 <input 
